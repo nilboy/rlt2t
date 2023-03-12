@@ -1,0 +1,2 @@
+pytorch==1.13.0+cu117
+transformers==4.26.0
