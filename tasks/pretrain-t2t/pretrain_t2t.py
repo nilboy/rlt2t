@@ -50,23 +50,10 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, is_offline_mode, send_example_telemetry
 from transformers.utils.versions import require_version
 
-
-# Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.27.0.dev0")
-
-require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/summarization/requirements.txt")
+from rlt2t.textmap.textmap_processor import TextMapProcessor
 
 logger = logging.getLogger(__name__)
 
-try:
-    nltk.data.find("tokenizers/punkt")
-except (LookupError, OSError):
-    if is_offline_mode():
-        raise LookupError(
-            "Offline mode: run this script without TRANSFORMERS_OFFLINE first to download nltk data files"
-        )
-    with FileLock(".lock") as lock:
-        nltk.download("punkt", quiet=True)
 
 # A list of all multilingual tokenizer which require lang attribute.
 MULTILINGUAL_TOKENIZERS = [MBartTokenizer, MBartTokenizerFast, MBart50Tokenizer, MBart50TokenizerFast]
@@ -261,6 +248,20 @@ class DataTrainingArguments:
         },
     )
 
+    text_map_start_idx: Optional[int] = field(
+        default=3,
+        metadata={
+            "help": "textmap_processor start_idx"
+        }
+    )
+
+    text_map_num_words: Optional[int] = field(
+        default=6100,
+        metadata={
+            "help": "textmap_processor num_words"
+        }
+    )
+
     def __post_init__(self):
         if self.dataset_name is None and self.train_file is None and self.validation_file is None:
             raise ValueError("Need either a dataset name or a training/validation file.")
@@ -303,10 +304,9 @@ def main():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("run_summarization", model_args, data_args)
+    # send_example_telemetry("run_summarization", model_args, data_args)
 
     # Setup logging
     logging.basicConfig(
@@ -418,6 +418,9 @@ def main():
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
     )
+    # build text_map processor
+    textmap_processor = TextMapProcessor(tokenizer, start_idx=data_args.text_map_start_idx,
+                                         num_words=data_args.text_map_num_words)
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -429,16 +432,15 @@ def main():
 
     # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
     # on a small vocab and want a smaller embedding size, remove this test.
-    embedding_size = model.get_input_embeddings().weight.shape[0]
-    if len(tokenizer) > embedding_size:
-        model.resize_token_embeddings(len(tokenizer))
+    # embedding_size = model.get_input_embeddings().weight.shape[0]
+    # if len(tokenizer) > embedding_size:
+    #     model.resize_token_embeddings(len(tokenizer))
 
     if model.config.decoder_start_token_id is None and isinstance(tokenizer, (MBartTokenizer, MBartTokenizerFast)):
         if isinstance(tokenizer, MBartTokenizer):
             model.config.decoder_start_token_id = tokenizer.lang_code_to_id[data_args.lang]
         else:
             model.config.decoder_start_token_id = tokenizer.convert_tokens_to_ids(data_args.lang)
-
     if model.config.decoder_start_token_id is None:
         raise ValueError("Make sure that `config.decoder_start_token_id` is correctly defined")
 
@@ -522,7 +524,6 @@ def main():
 
     def preprocess_function(examples):
         # remove pairs where at least one record is None
-
         inputs, targets = [], []
         for i in range(len(examples[text_column])):
             if examples[text_column][i] and examples[summary_column][i]:
@@ -530,10 +531,18 @@ def main():
                 targets.append(examples[summary_column][i])
 
         inputs = [prefix + inp for inp in inputs]
-        model_inputs = tokenizer(inputs, max_length=data_args.max_source_length, padding=padding, truncation=True)
+
+        # textmap_processor
+        tokenized_inputs = [textmap_processor.tokenize(item) for item in inputs]
+        model_inputs = tokenizer(tokenized_inputs,
+                                  max_length=data_args.max_source_length, padding=padding, truncation=True,
+                                  is_split_into_words=True)
 
         # Tokenize targets with the `text_target` keyword argument
-        labels = tokenizer(text_target=targets, max_length=max_target_length, padding=padding, truncation=True)
+        tokenized_targets = [textmap_processor.tokenize(item) for item in targets]
+        labels = tokenizer(text_target=tokenized_targets,
+                           max_length=max_target_length,
+                           padding=padding, truncation=True, is_split_into_words=True)
 
         # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
         # padding in the loss.
@@ -615,25 +624,35 @@ def main():
         labels = [label.strip() for label in labels]
 
         # rougeLSum expects newline after each sentence
-        preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
-        labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
+        # preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
+        # labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
 
         return preds, labels
+
+    def batch_decode_text(labels):
+        outputs = []
+        for item in labels:
+            output_text = textmap_processor.decode([tid for tid in item if tid >= textmap_processor.start_idx])
+            outputs.append(output_text)
+        return outputs
 
     def compute_metrics(eval_preds):
         preds, labels = eval_preds
         if isinstance(preds, tuple):
             preds = preds[0]
-        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+
+        decoded_preds = batch_decode_text(preds)
+
         if data_args.ignore_pad_token_for_loss:
             # Replace -100 in the labels as we can't decode them.
             labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        decoded_labels = batch_decode_text(labels)
 
         # Some simple post-processing
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
 
-        result = metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
+        result = metric.compute(predictions=decoded_preds, references=decoded_labels,
+                                tokenizer=lambda x: x.split())
         result = {k: round(v * 100, 4) for k, v in result.items()}
         prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
         result["gen_len"] = np.mean(prediction_lens)
