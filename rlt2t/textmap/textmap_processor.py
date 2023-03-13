@@ -7,25 +7,25 @@ class TextMapProcessor(object):
                  start_idx: int = 3,
                  num_words: int = 5000):
         self.start_idx = start_idx
-        tokens = tokenizer.convert_ids_tokens(range(start_idx, start_idx + num_words))
-        ids = range(start_idx, start_idx + num_words)
+        tokens = tokenizer.convert_ids_to_tokens(range(start_idx, start_idx + num_words))
+        ids = range(num_words)
         self.token2id = {
-            token: id
-            for token, id in zip(tokens, ids)
+            token: idx
+            for token, idx in zip(tokens, ids)
         }
         self.id2token = {
-            id: token
-            for token, id in zip(tokens, ids)
+            idx: token
+            for token, idx in zip(tokens, ids)
         }
 
     def tokenize(self, text):
-        token_ids = [
+        ids = [
             int(token)
             for token in text.split()
         ]
         return [
-            self.id2token[tid]
-            for tid in token_ids
+            self.id2token[idx]
+            for idx in ids
         ]
 
     def decode(self, tids: List[int]):
