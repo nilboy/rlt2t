@@ -3,6 +3,8 @@ deepspeed --num_gpus=1 tasks/sft-t2t/run_t2t.py \
       --model_name_or_path /root/autodl-tmp/models/IDEA-CCNL/Randeng-T5-784M \
       --do_train \
       --do_eval \
+      --evaluation_strategy steps \
+      --eval_steps 1000 \
       --train_file /root/autodl-tmp/data/train.json \
       --validation_file /root/autodl-tmp/data/test.json \
       --text_column text \
@@ -11,19 +13,16 @@ deepspeed --num_gpus=1 tasks/sft-t2t/run_t2t.py \
       --output_dir /root/autodl-tmp/output-models/sft-t2t \
       --text_map_start_idx 3 \
       --text_map_num_words 6100 \
-      --max_eval_samples 4 \
-      --max_train_samples 20 \
       --per_device_train_batch_size 2 \
+      --gradient_accumulation_steps 4 \
       --per_device_eval_batch_size 4 \
-      --num_train_epochs 5 \
-      --learning_rate 5e-5 \
+      --learning_rate 2e-5 \
       --weight_decay 0.0 \
-      --max_steps 400 \
-      --warmup_steps 100 \
+      --max_steps 40000 \
+      --warmup_steps 1000 \
       --lr_scheduler_type linear \
       --logging_steps 20 \
-      --save_steps 100 \
+      --save_steps 2000 \
       --save_total_limit 2 \
-      --overwrite_output_dir \
       --predict_with_generate \
-      --fp16
+      --bf16

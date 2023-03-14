@@ -421,6 +421,8 @@ def main():
     # build text_map processor
     textmap_processor = TextMapProcessor(tokenizer, start_idx=data_args.text_map_start_idx,
                                          num_words=data_args.text_map_num_words)
+    training_args.text_map_start_idx = data_args.text_map_start_idx
+    training_args.text_map_num_words = data_args.text_map_num_words
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -537,6 +539,9 @@ def main():
         model_inputs = tokenizer(tokenized_inputs,
                                   max_length=data_args.max_source_length, padding=padding, truncation=True,
                                   is_split_into_words=True)
+
+        import ipdb
+        ipdb.set_trace()
 
         # Tokenize targets with the `text_target` keyword argument
         tokenized_targets = [textmap_processor.tokenize(item) for item in targets]

@@ -3,11 +3,13 @@
         "enabled": "auto",
         "loss_scale": 0,
         "loss_scale_window": 1000,
-        "initial_scale_power": 16,
+        "initial_scale_power": 6,
         "hysteresis": 2,
-        "min_loss_scale": 1
+        "min_loss_scale": 0.5
     },
-
+    "bf16": {
+       "enabled": "auto"
+     },
     "optimizer": {
         "type": "AdamW",
         "params": {
@@ -24,7 +26,8 @@
             "total_num_steps": "auto",
             "warmup_min_lr": "auto",
             "warmup_max_lr": "auto",
-            "warmup_num_steps": "auto"
+            "warmup_num_steps": "auto",
+            "warmup_type": "linear"
         }
     },
 
