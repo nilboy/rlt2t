@@ -539,10 +539,6 @@ def main():
         model_inputs = tokenizer(tokenized_inputs,
                                   max_length=data_args.max_source_length, padding=padding, truncation=True,
                                   is_split_into_words=True)
-
-        import ipdb
-        ipdb.set_trace()
-
         # Tokenize targets with the `text_target` keyword argument
         tokenized_targets = [textmap_processor.tokenize(item) for item in targets]
         labels = tokenizer(text_target=tokenized_targets,

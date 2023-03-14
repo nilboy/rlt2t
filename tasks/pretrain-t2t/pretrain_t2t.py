@@ -440,7 +440,7 @@ def main():
     # build text_map processor
     textmap_processor = TextMapProcessor(tokenizer, start_idx=data_args.text_map_start_idx,
                                          num_words=data_args.text_map_num_words)
-    t5_mask_processor = T5MaskProcessor(len(tokenizer), tokenizer.eos_token_id,
+    t5_mask_processor = T5MaskProcessor(len(tokenizer), 1,
                                         noise_density=data_args.noise_density,
                                         mean_noise_span_length=data_args.mean_noise_span_length,
                                         process_count=data_args.process_data_p_count)
