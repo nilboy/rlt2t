@@ -162,7 +162,7 @@ class DataTrainingArguments:
         },
     )
     max_target_length: Optional[int] = field(
-        default=128,
+        default=256,
         metadata={
             "help": (
                 "The maximum total sequence length for target text after tokenization. Sequences longer "
@@ -249,18 +249,26 @@ class DataTrainingArguments:
     )
 
     text_map_start_idx: Optional[int] = field(
-        default=3,
+        default=106,
         metadata={
             "help": "textmap_processor start_idx"
         }
     )
 
     text_map_num_words: Optional[int] = field(
-        default=6100,
+        default=7000,
         metadata={
             "help": "textmap_processor num_words"
         }
     )
+
+    eos_id: Optional[int] = field(
+        default=105,
+        metadata={
+            "help": "eos id."
+        }
+    )
+
 
     def __post_init__(self):
         if self.dataset_name is None and self.train_file is None and self.validation_file is None:
@@ -410,6 +418,7 @@ def main():
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
+        eos_token_id=data_args.eos_id
     )
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
@@ -553,6 +562,11 @@ def main():
             ]
 
         model_inputs["labels"] = labels["input_ids"]
+        for item in model_inputs['input_ids']:
+            item[-1] = data_args.eos_id
+        for item in model_inputs['labels']:
+            item[-1] = data_args.eos_id
+
         return model_inputs
 
     if training_args.do_train:
@@ -633,15 +647,15 @@ def main():
     def batch_decode_text(labels):
         outputs = []
         for item in labels:
-            output_text = textmap_processor.decode([tid for tid in item if tid >= textmap_processor.start_idx])
+            output_text = textmap_processor.decode([tid for tid in item if tid >= data_args.text_map_start_idx])
             outputs.append(output_text)
         return outputs
 
     def compute_metrics(eval_preds):
         preds, labels = eval_preds
+
         if isinstance(preds, tuple):
             preds = preds[0]
-
         decoded_preds = batch_decode_text(preds)
 
         if data_args.ignore_pad_token_for_loss:

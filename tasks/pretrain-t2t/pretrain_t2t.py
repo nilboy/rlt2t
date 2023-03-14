@@ -160,7 +160,7 @@ class DataTrainingArguments:
         },
     )
     max_target_length: Optional[int] = field(
-        default=128,
+        default=256,
         metadata={
             "help": (
                 "The maximum total sequence length for target text after tokenization. Sequences longer "
@@ -247,21 +247,21 @@ class DataTrainingArguments:
     )
 
     text_map_start_idx: Optional[int] = field(
-        default=3,
+        default=106,
         metadata={
             "help": "textmap_processor start_idx"
         }
     )
 
     text_map_num_words: Optional[int] = field(
-        default=6100,
+        default=7000,
         metadata={
             "help": "textmap_processor num_words"
         }
     )
 
     noise_density: Optional[float] = field(
-        default=0.15,
+        default=0.05,
         metadata={
             "help": "t5 mask noise density"
         }
@@ -278,6 +278,20 @@ class DataTrainingArguments:
         default=8,
         metadata={
             "help": "process data multiprocess count."
+        }
+    )
+
+    extra_start_id: Optional[int] = field(
+        default=1,
+        metadata={
+            "help": "extra start id."
+        }
+    )
+
+    eos_id: Optional[int] = field(
+        default=105,
+        metadata={
+            "help": "eos id."
         }
     )
 
@@ -429,6 +443,7 @@ def main():
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
+        eos_token_id=data_args.eos_id
     )
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
@@ -440,7 +455,7 @@ def main():
     # build text_map processor
     textmap_processor = TextMapProcessor(tokenizer, start_idx=data_args.text_map_start_idx,
                                          num_words=data_args.text_map_num_words)
-    t5_mask_processor = T5MaskProcessor(len(tokenizer), 1,
+    t5_mask_processor = T5MaskProcessor(data_args.extra_start_id, data_args.eos_id,
                                         noise_density=data_args.noise_density,
                                         mean_noise_span_length=data_args.mean_noise_span_length,
                                         process_count=data_args.process_data_p_count)
@@ -544,9 +559,11 @@ def main():
         # textmap_processor
         tokenized_inputs = [textmap_processor.tokenize(item) for item in inputs]
         model_inputs = tokenizer(tokenized_inputs,
-                                  max_length=data_args.max_source_length, padding=padding, truncation=True,
-                                  is_split_into_words=True)
+                                 max_length=data_args.max_source_length, padding=padding, truncation=True,
+                                 add_special_tokens=False,
+                                 is_split_into_words=True)
         output_input_ids, output_labels = t5_mask_processor(model_inputs['input_ids'])
+
         if padding == "max_length" and data_args.ignore_pad_token_for_loss:
             output_labels = [
                 [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in output_labels
@@ -637,7 +654,7 @@ def main():
     def batch_decode_text(labels):
         outputs = []
         for item in labels:
-            output_text = textmap_processor.decode([tid for tid in item if tid >= textmap_processor.start_idx])
+            output_text = textmap_processor.decode(item)
             outputs.append(output_text)
         return outputs
 

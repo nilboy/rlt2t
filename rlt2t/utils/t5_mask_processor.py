@@ -2,8 +2,8 @@ import numpy as np
 from joblib import Parallel, delayed
 
 def process_example(input_ids,
-                    tokenizer_len,
-                    eos_id=1,
+                    extra_start_id,
+                    eos_id=105,
                     noise_density=0.15,
                     mean_noise_span_length=3):
     input_ids = np.array([input_ids])
@@ -13,15 +13,15 @@ def process_example(input_ids,
                                                        mean_noise_span_length) for i in range(batch_size)])
     labels_mask = ~mask_indices
     input_ids_sentinel = create_sentinel_ids(mask_indices.astype(np.int8),
-                                             tokenizer_len)
+                                             extra_start_id)
     labels_sentinel = create_sentinel_ids(labels_mask.astype(np.int8),
-                                          tokenizer_len)
+                                          extra_start_id)
     output_input_ids = filter_input_ids(input_ids, input_ids_sentinel,
                                         eos_id)
     output_labels = filter_input_ids(input_ids, labels_sentinel, eos_id)
     return output_input_ids[0], output_labels[0]
 
-def create_sentinel_ids(mask_indices, tokenizer_len):
+def create_sentinel_ids(mask_indices, extra_start_id):
     """
     Sentinel ids creation given the indices that should be masked.
     The start indices of each mask are replaced by the sentinel ids in increasing
@@ -31,12 +31,12 @@ def create_sentinel_ids(mask_indices, tokenizer_len):
     start_indices[:, 0] = mask_indices[:, 0]
 
     sentinel_ids = np.where(start_indices != 0, np.cumsum(start_indices, axis=-1), start_indices)
-    sentinel_ids = np.where(sentinel_ids != 0, (tokenizer_len - sentinel_ids), 0)
+    sentinel_ids = np.where(sentinel_ids != 0, (extra_start_id + sentinel_ids), 0)
     sentinel_ids -= mask_indices - start_indices
 
     return sentinel_ids
 
-def filter_input_ids(input_ids, sentinel_ids, eos_id=1):
+def filter_input_ids(input_ids, sentinel_ids, eos_id=105):
     """
     Puts sentinel mask on `input_ids` and fuse consecutive mask tokens into a single mask token by deleting.
     This will reduce the sequence length from `expanded_inputs_length` to `input_length`.
@@ -139,12 +139,12 @@ class T5MaskProcessor(object):
         decoder_start_token_id: (:obj:`int):
             The decoder start token id of the model
     """
-    def __init__(self, tokenizer_len: int,
-                 eos_id: int = 1,
+    def __init__(self, extra_start_id: int = 1,
+                 eos_id: int = 105,
                  noise_density: float = 0.15,
                  mean_noise_span_length: float = 3.0,
                  process_count: int = 8):
-        self.tokenizer_len = tokenizer_len
+        self.extra_start_id = extra_start_id
         self.eos_id = eos_id
         self.noise_density = noise_density
         self.mean_noise_span_length = mean_noise_span_length
@@ -152,7 +152,7 @@ class T5MaskProcessor(object):
 
     def __call__(self, input_ids_list):
         output_list = Parallel(n_jobs=self.process_count)(
-            delayed(process_example)(input_ids, self.tokenizer_len, self.eos_id, self.noise_density,
+            delayed(process_example)(input_ids, self.extra_start_id, self.eos_id, self.noise_density,
                                      self.mean_noise_span_length)
             for input_ids in input_ids_list
         )
