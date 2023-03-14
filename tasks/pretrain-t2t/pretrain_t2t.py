@@ -51,6 +51,7 @@ from transformers.utils import check_min_version, is_offline_mode, send_example_
 from transformers.utils.versions import require_version
 
 from rlt2t.textmap.textmap_processor import TextMapProcessor
+from rlt2t.utils.t5_mask_processor import T5MaskProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -124,10 +125,7 @@ class DataTrainingArguments:
         default=None,
         metadata={"help": "The name of the column in the datasets containing the full texts (for summarization)."},
     )
-    summary_column: Optional[str] = field(
-        default=None,
-        metadata={"help": "The name of the column in the datasets containing the summaries (for summarization)."},
-    )
+
     train_file: Optional[str] = field(
         default=None, metadata={"help": "The input training data file (a jsonlines or csv file)."}
     )
@@ -259,6 +257,27 @@ class DataTrainingArguments:
         default=6100,
         metadata={
             "help": "textmap_processor num_words"
+        }
+    )
+
+    noise_density: Optional[float] = field(
+        default=0.15,
+        metadata={
+            "help": "t5 mask noise density"
+        }
+    )
+
+    mean_noise_span_length: Optional[float] = field(
+        default=3.0,
+        metadata={
+            "help": "t5 mask mean noise span length"
+        }
+    )
+
+    process_data_p_count: Optional[int] = field(
+        default=8,
+        metadata={
+            "help": "process data multiprocess count."
         }
     )
 
@@ -421,6 +440,10 @@ def main():
     # build text_map processor
     textmap_processor = TextMapProcessor(tokenizer, start_idx=data_args.text_map_start_idx,
                                          num_words=data_args.text_map_num_words)
+    t5_mask_processor = T5MaskProcessor(len(tokenizer), tokenizer.eos_token_id,
+                                        noise_density=data_args.noise_density,
+                                        mean_noise_span_length=data_args.mean_noise_span_length,
+                                        process_count=data_args.process_data_p_count)
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -464,8 +487,6 @@ def main():
                 " model's position encodings by passing `--resize_position_embeddings`."
             )
 
-    prefix = data_args.source_prefix if data_args.source_prefix is not None else ""
-
     # Preprocessing the datasets.
     # We need to tokenize inputs and targets.
     if training_args.do_train:
@@ -503,14 +524,6 @@ def main():
             raise ValueError(
                 f"--text_column' value '{data_args.text_column}' needs to be one of: {', '.join(column_names)}"
             )
-    if data_args.summary_column is None:
-        summary_column = dataset_columns[1] if dataset_columns is not None else column_names[1]
-    else:
-        summary_column = data_args.summary_column
-        if summary_column not in column_names:
-            raise ValueError(
-                f"--summary_column' value '{data_args.summary_column}' needs to be one of: {', '.join(column_names)}"
-            )
 
     # Temporarily set max_target_length for training.
     max_target_length = data_args.max_target_length
@@ -524,34 +537,26 @@ def main():
 
     def preprocess_function(examples):
         # remove pairs where at least one record is None
-        inputs, targets = [], []
+        inputs = []
         for i in range(len(examples[text_column])):
-            if examples[text_column][i] and examples[summary_column][i]:
+            if examples[text_column][i]:
                 inputs.append(examples[text_column][i])
-                targets.append(examples[summary_column][i])
-
-        inputs = [prefix + inp for inp in inputs]
-
         # textmap_processor
         tokenized_inputs = [textmap_processor.tokenize(item) for item in inputs]
         model_inputs = tokenizer(tokenized_inputs,
                                   max_length=data_args.max_source_length, padding=padding, truncation=True,
                                   is_split_into_words=True)
-
-        # Tokenize targets with the `text_target` keyword argument
-        tokenized_targets = [textmap_processor.tokenize(item) for item in targets]
-        labels = tokenizer(text_target=tokenized_targets,
-                           max_length=max_target_length,
-                           padding=padding, truncation=True, is_split_into_words=True)
-
-        # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
-        # padding in the loss.
+        output_input_ids, output_labels = t5_mask_processor(model_inputs['input_ids'])
         if padding == "max_length" and data_args.ignore_pad_token_for_loss:
-            labels["input_ids"] = [
-                [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
+            output_labels = [
+                [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in output_labels
             ]
-
-        model_inputs["labels"] = labels["input_ids"]
+        model_inputs['input_ids'] = output_input_ids
+        model_inputs['attention_mask'] = [
+            [1] * len(item)
+            for item in output_input_ids
+        ]
+        model_inputs['labels'] = output_labels
         return model_inputs
 
     if training_args.do_train:
