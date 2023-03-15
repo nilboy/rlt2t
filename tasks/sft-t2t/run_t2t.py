@@ -428,8 +428,9 @@ def main():
         use_auth_token=True if model_args.use_auth_token else None,
     )
     # build text_map processor
-    textmap_processor = TextMapProcessor(tokenizer, start_idx=data_args.text_map_start_idx,
-                                         num_words=data_args.text_map_num_words)
+    textmap_processor = TextMapProcessor(start_idx=data_args.text_map_start_idx,
+                                         num_words=data_args.text_map_num_words,
+                                         eos_id=data_args.eos_id)
     training_args.text_map_start_idx = data_args.text_map_start_idx
     training_args.text_map_num_words = data_args.text_map_num_words
     model = AutoModelForSeq2SeqLM.from_pretrained(
@@ -544,15 +545,13 @@ def main():
         inputs = [prefix + inp for inp in inputs]
 
         # textmap_processor
-        tokenized_inputs = [textmap_processor.tokenize(item) for item in inputs]
-        model_inputs = tokenizer(tokenized_inputs,
-                                  max_length=data_args.max_source_length, padding=padding, truncation=True,
-                                  is_split_into_words=True)
+        model_inputs = textmap_processor.encode_t5(inputs,
+                                                   max_length=data_args.max_source_length,
+                                                   add_special_tokens=True)
         # Tokenize targets with the `text_target` keyword argument
-        tokenized_targets = [textmap_processor.tokenize(item) for item in targets]
-        labels = tokenizer(text_target=tokenized_targets,
-                           max_length=max_target_length,
-                           padding=padding, truncation=True, is_split_into_words=True)
+        labels = textmap_processor.encode_t5(targets,
+                                             max_length=data_args.max_source_length,
+                                             add_special_tokens=True)
 
         # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
         # padding in the loss.
@@ -562,11 +561,6 @@ def main():
             ]
 
         model_inputs["labels"] = labels["input_ids"]
-        for item in model_inputs['input_ids']:
-            item[-1] = data_args.eos_id
-        for item in model_inputs['labels']:
-            item[-1] = data_args.eos_id
-
         return model_inputs
 
     if training_args.do_train:
@@ -647,13 +641,18 @@ def main():
     def batch_decode_text(labels):
         outputs = []
         for item in labels:
-            output_text = textmap_processor.decode([tid for tid in item if tid >= data_args.text_map_start_idx])
+            filtered_tids = []
+            for tid in item:
+                if tid == data_args.eos_id:
+                    break
+                if tid > 0:
+                    filtered_tids.append(tid)
+            output_text = textmap_processor.decode(filtered_tids)
             outputs.append(output_text)
         return outputs
 
     def compute_metrics(eval_preds):
         preds, labels = eval_preds
-
         if isinstance(preds, tuple):
             preds = preds[0]
         decoded_preds = batch_decode_text(preds)
@@ -662,7 +661,6 @@ def main():
             # Replace -100 in the labels as we can't decode them.
             labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
         decoded_labels = batch_decode_text(labels)
-
         # Some simple post-processing
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
 

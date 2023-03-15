@@ -4,23 +4,23 @@ deepspeed --num_gpus=1 tasks/pretrain-t2t/pretrain_t2t.py \
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
-      --eval_steps 100 \
-      --train_file /root/autodl-tmp/data/pretrain-t2t-test.json \
+      --eval_steps 1000 \
+      --train_file /root/autodl-tmp/data/pretrain-t2t.json \
       --validation_file /root/autodl-tmp/data/pretrain-t2t-test.json \
       --text_column text \
       --output_dir /root/autodl-tmp/output-models/pretrain-t2t \
-      --text_map_start_idx 3 \
-      --text_map_num_words 6100 \
-      --per_device_train_batch_size 2 \
+      --text_map_start_idx 106 \
+      --text_map_num_words 7000 \
+      --per_device_train_batch_size 16 \
       --gradient_accumulation_steps 4 \
       --per_device_eval_batch_size 4 \
       --learning_rate 2e-5 \
       --weight_decay 0.0 \
-      --max_steps 40000 \
-      --warmup_steps 100 \
+      --max_steps 100000 \
+      --warmup_steps 1000 \
       --lr_scheduler_type linear \
       --logging_steps 20 \
-      --save_steps 2000 \
+      --save_steps 1000 \
       --save_total_limit 2 \
       --predict_with_generate \
       --bf16

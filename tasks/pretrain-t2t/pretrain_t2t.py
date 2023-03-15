@@ -261,7 +261,7 @@ class DataTrainingArguments:
     )
 
     noise_density: Optional[float] = field(
-        default=0.05,
+        default=0.15,
         metadata={
             "help": "t5 mask noise density"
         }
@@ -453,8 +453,9 @@ def main():
         use_auth_token=True if model_args.use_auth_token else None,
     )
     # build text_map processor
-    textmap_processor = TextMapProcessor(tokenizer, start_idx=data_args.text_map_start_idx,
-                                         num_words=data_args.text_map_num_words)
+    textmap_processor = TextMapProcessor(start_idx=data_args.text_map_start_idx,
+                                         num_words=data_args.text_map_num_words,
+                                         eos_id=data_args.eos_id)
     t5_mask_processor = T5MaskProcessor(data_args.extra_start_id, data_args.eos_id,
                                         noise_density=data_args.noise_density,
                                         mean_noise_span_length=data_args.mean_noise_span_length,
@@ -556,12 +557,11 @@ def main():
         for i in range(len(examples[text_column])):
             if examples[text_column][i]:
                 inputs.append(examples[text_column][i])
-        # textmap_processor
-        tokenized_inputs = [textmap_processor.tokenize(item) for item in inputs]
-        model_inputs = tokenizer(tokenized_inputs,
-                                 max_length=data_args.max_source_length, padding=padding, truncation=True,
-                                 add_special_tokens=False,
-                                 is_split_into_words=True)
+
+        model_inputs = textmap_processor.encode_t5(inputs,
+                                                   max_length=data_args.max_source_length,
+                                                   add_special_tokens=False)
+
         output_input_ids, output_labels = t5_mask_processor(model_inputs['input_ids'])
 
         if padding == "max_length" and data_args.ignore_pad_token_for_loss:
@@ -654,7 +654,13 @@ def main():
     def batch_decode_text(labels):
         outputs = []
         for item in labels:
-            output_text = textmap_processor.decode(item)
+            filtered_tids = []
+            for tid in item:
+                if tid == data_args.eos_id:
+                    break
+                if tid > 0:
+                    filtered_tids.append(tid)
+            output_text = textmap_processor.decode(filtered_tids)
             outputs.append(output_text)
         return outputs
 

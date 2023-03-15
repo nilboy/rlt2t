@@ -16,9 +16,8 @@ deepspeed --num_gpus=1 tasks/sft-t2t/run_t2t.py \
       --per_device_train_batch_size 16 \
       --gradient_accumulation_steps 1 \
       --per_device_eval_batch_size 8 \
-      --learning_rate 2e-5 \
+      --learning_rate 4e-5 \
       --weight_decay 0.0 \
-      --max_eval_samples 100 \
       --max_steps 40000 \
       --warmup_steps 1000 \
       --lr_scheduler_type linear \
