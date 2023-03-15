@@ -14,3 +14,9 @@ finetune text2text 模型.
 ```
 bash ./tasks/sft-t2t/run.sh
 ```
+
+# 导出ctranslate2模型
+
+```
+ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
+```
