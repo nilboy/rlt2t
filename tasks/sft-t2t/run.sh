@@ -1,6 +1,6 @@
 deepspeed --num_gpus=1 tasks/sft-t2t/run_t2t.py \
       --deepspeed tasks/sft-t2t/ds_config.json \
-      --model_name_or_path /root/autodl-tmp/models/IDEA-CCNL/Randeng-T5-77M \
+      --model_name_or_path /root/autodl-tmp/models/IDEA-CCNL/Randeng-BART-759M-Chinese-BertTokenizer \
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
@@ -10,12 +10,12 @@ deepspeed --num_gpus=1 tasks/sft-t2t/run_t2t.py \
       --text_column text \
       --summary_column summary \
       --source_prefix "" \
-      --output_dir /root/autodl-tmp/output-models/sft-t2t \
+      --output_dir /root/autodl-tmp/output-models/sft-t2t-bart-759m-fp16 \
       --text_map_start_idx 106 \
       --text_map_num_words 7000 \
-      --per_device_train_batch_size 16 \
-      --gradient_accumulation_steps 1 \
-      --per_device_eval_batch_size 8 \
+      --per_device_train_batch_size 2 \
+      --gradient_accumulation_steps 4 \
+      --per_device_eval_batch_size 4 \
       --learning_rate 4e-5 \
       --weight_decay 0.0 \
       --max_steps 40000 \
@@ -25,4 +25,4 @@ deepspeed --num_gpus=1 tasks/sft-t2t/run_t2t.py \
       --save_steps 1000 \
       --save_total_limit 2 \
       --predict_with_generate \
-      --bf16
+      --fp16

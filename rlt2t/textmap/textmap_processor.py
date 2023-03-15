@@ -20,9 +20,11 @@ class TextMapProcessor(object):
         }
         for text in inputs:
             tids = [int(token) + self.start_idx for token in text.split()]
-            tids = tids[0:max_length]
             if add_special_tokens:
+                tids = tids[0:max_length-1]
                 tids.append(self.eos_id)
+            else:
+                tids = tids[0:max_length]
             attention_mask = [1] * len(tids)
             outputs['input_ids'].append(tids)
             outputs['attention_mask'].append(attention_mask)

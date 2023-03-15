@@ -445,6 +445,7 @@ def main():
         use_auth_token=True if model_args.use_auth_token else None,
         eos_token_id=data_args.eos_id
     )
+    config.decoder_start_token_id = 0
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -452,6 +453,7 @@ def main():
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
     )
+    tokenizer.eos_token_id = data_args.eos_id
     # build text_map processor
     textmap_processor = TextMapProcessor(start_idx=data_args.text_map_start_idx,
                                          num_words=data_args.text_map_num_words,
