@@ -7,6 +7,7 @@ from typing import List
 from tqdm.auto import tqdm
 import torch
 
+
 class T2TEngineCT2(object):
     def __init__(self,
                  model_path,
@@ -30,8 +31,11 @@ class T2TEngineCT2(object):
                         max_input_length=1024,
                         max_decoding_length=256,
                         sampling_topk=1,
-                        sampling_temperature=1.0):
-        preds, labels = [], []
+                        sampling_temperature=1.0,
+                        num_hypotheses=1,
+                        length_penalty=0.0,
+                        **kwargs):
+        preds = []
         for i in tqdm(range(0, len(records), batch_size),
                       desc="predict..."):
             cur_records = records[i:i + batch_size]
@@ -44,19 +48,26 @@ class T2TEngineCT2(object):
                                                      max_input_length=max_input_length,
                                                      max_decoding_length=max_decoding_length,
                                                      sampling_topk=sampling_topk,
-                                                     sampling_temperature=sampling_temperature)
+                                                     sampling_temperature=sampling_temperature,
+                                                     num_hypotheses=num_hypotheses,
+                                                     length_penalty=length_penalty,
+                                                     **kwargs)
             for j in range(0, len(cur_records)):
-                target = results[j].hypotheses[0]
-                filtered_tids = []
-                tids = [self.token2id[item] for item in target]
-                for tid in tids:
-                    if tid == self.mapper.eos_id:
-                        break
-                    if tid > 0:
-                        filtered_tids.append(tid)
-                output_text = self.mapper.decode(filtered_tids)
-                preds.append(output_text)
+                preds_item = []
+                for h_idx in range(0, num_hypotheses):
+                    target = results[j].hypotheses[h_idx]
+                    filtered_tids = []
+                    tids = [self.token2id[item] for item in target]
+                    for tid in tids:
+                        if tid == self.mapper.eos_id:
+                            break
+                        if tid > 0:
+                            filtered_tids.append(tid)
+                    output_text = self.mapper.decode(filtered_tids)
+                    preds_item.append(output_text)
+                preds.append(preds_item)
         return preds
+
 
 class T2TEngineHF(object):
     def __init__(self,
@@ -74,7 +85,8 @@ class T2TEngineHF(object):
                         max_decoding_length=256,
                         sampling_topk=1,
                         sampling_temperature=1.0,
-                        do_sample=False):
+                        do_sample=False,
+                        **kwargs):
         preds = []
         for i in tqdm(range(0, len(records), batch_size), desc='predict...'):
             cur_records = records[i:i + batch_size]
@@ -96,7 +108,7 @@ class T2TEngineHF(object):
                                               max_length=max_decoding_length,
                                               top_k=sampling_topk,
                                               temperature=sampling_temperature,
-                                              do_sample=do_sample)
+                                              do_sample=do_sample, **kwargs)
             outputs = outputs.detach().cpu().tolist()
 
             for j in range(0, len(cur_records)):
