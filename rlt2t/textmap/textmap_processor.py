@@ -45,7 +45,8 @@ class TextMapProcessor(object):
                 outputs[k].append(v)
         return BatchEncoding(data=outputs)
 
-    def _encode_mlm_single(self, text_a: str, text_b: str, max_length: int):
+    def _encode_mlm_single(self, text_a: str, text_b: str, max_length: int,
+                           pad=False):
         text_a_tids = [int(token) + self.start_idx for token in text_a.split()]
         text_b_tids = [int(token) + self.start_idx for token in text_b.split()]
         if len(text_a_tids) > max_length - 3:
@@ -78,9 +79,19 @@ class TextMapProcessor(object):
         token_type_ids.append(1)
         attention_mask.append(1)
         special_tokens_mask.append(1)
+        if pad:
+            self.pad_to_max_length(input_ids, max_length)
+            self.pad_to_max_length(token_type_ids, max_length)
+            self.pad_to_max_length(attention_mask, max_length)
+            self.pad_to_max_length(special_tokens_mask, max_length)
         return {
             'input_ids': input_ids,
             'token_type_ids': token_type_ids,
             'attention_mask': attention_mask,
             'special_tokens_mask': special_tokens_mask
         }
+
+    def pad_to_max_length(self, values, max_length):
+        if len(values) < max_length:
+            pad_length = max_length - len(values)
+            values.extend([0] * pad_length)

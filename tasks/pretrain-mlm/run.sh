@@ -1,13 +1,13 @@
-deepspeed --num_gpus=1 tasks/pretrain-mlm/pretrain_mlm.py \
+deepspeed tasks/pretrain-mlm/pretrain_mlm.py \
       --deepspeed tasks/pretrain-mlm/ds_config.json \
       --model_name_or_path /root/autodl-tmp/models/IDEA-CCNL/Erlangshen-MegatronBert-1.3B \
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
-      --eval_steps 10 \
+      --eval_steps 1000 \
       --train_file /root/autodl-tmp/data/train.json \
       --validation_file /root/autodl-tmp/data/test.json \
-      --output_dir /root/autodl-tmp/output-models/pretrain-mlm \
+      --output_dir /root/autodl-tmp/output-models/pretrain-mlm-bf16 \
       --max_seq_length 512 \
       --line_by_line true \
       --text_map_start_idx 106 \
@@ -21,6 +21,6 @@ deepspeed --num_gpus=1 tasks/pretrain-mlm/pretrain_mlm.py \
       --warmup_steps 1000 \
       --lr_scheduler_type linear \
       --logging_steps 20 \
-      --save_steps 1000 \
+      --save_steps 500 \
       --save_total_limit 2 \
       --bf16

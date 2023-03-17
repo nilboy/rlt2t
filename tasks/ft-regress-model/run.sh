@@ -1,0 +1,1 @@
+python tasks/ft-regress-model/run.py fit --config tasks/ft-regress-model/config.yaml
