@@ -1,5 +1,4 @@
-deepspeed --num_gpus=1 tasks/sft-t2t/run_t2t.py \
-      --deepspeed tasks/sft-t2t/ds_config.json \
+params=(
       --model_name_or_path /root/autodl-tmp/models/IDEA-CCNL/Randeng-T5-784M \
       --do_train \
       --do_eval \
@@ -26,3 +25,10 @@ deepspeed --num_gpus=1 tasks/sft-t2t/run_t2t.py \
       --save_total_limit 2 \
       --predict_with_generate \
       --bf16
+)
+
+if [[ "$1" == "deepspeed" ]]; then
+  deepspeed tasks/sft-t2t/run_t2t.py --deepspeed tasks/sft-t2t/ds_config.json "${params[@]}"
+else
+  python -m torch.distributed.launch --nproc_per_node "$2" tasks/sft-t2t/run_t2t.py "${params[@]}"
+fi

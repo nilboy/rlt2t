@@ -1,5 +1,4 @@
-deepspeed tasks/pretrain-mlm/pretrain_mlm.py \
-      --deepspeed tasks/pretrain-mlm/ds_config.json \
+params=(
       --model_name_or_path /root/autodl-tmp/models/IDEA-CCNL/Erlangshen-MegatronBert-1.3B \
       --do_train \
       --do_eval \
@@ -24,3 +23,10 @@ deepspeed tasks/pretrain-mlm/pretrain_mlm.py \
       --save_steps 500 \
       --save_total_limit 2 \
       --bf16
+)
+
+if [[ "$1" == "deepspeed" ]]; then
+  deepspeed tasks/pretrain-mlm/pretrain_mlm.py --deepspeed tasks/pretrain-mlm/ds_config.json "${params[@]}"
+else
+  python -m torch.distributed.launch --nproc_per_node "$2" tasks/pretrain-mlm/pretrain_mlm.py "${params[@]}"
+fi

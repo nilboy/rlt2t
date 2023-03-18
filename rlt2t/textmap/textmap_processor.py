@@ -4,12 +4,16 @@ from typing import List
 class TextMapProcessor(object):
     def __init__(self, start_idx: int = 106,
                  num_words: int = 7000,
-                 eos_id: int = 105):
+                 eos_id: int = 105,
+                 bos_id: int = 104,
+                 cls_token_id: int = 101,
+                 sep_token_id: int = 102):
         self.start_idx = start_idx
         self.num_words = num_words
         self.eos_id = eos_id
-        self.cls_token_id = 101
-        self.sep_token_id = 102
+        self.cls_token_id = cls_token_id
+        self.sep_token_id = sep_token_id
+        self.bos_id = bos_id
 
     def decode(self, tids: List[int]):
         return " ".join([str(tid - self.start_idx) for tid in tids])
@@ -27,6 +31,23 @@ class TextMapProcessor(object):
                 tids.append(self.eos_id)
             else:
                 tids = tids[0:max_length]
+            attention_mask = [1] * len(tids)
+            outputs['input_ids'].append(tids)
+            outputs['attention_mask'].append(attention_mask)
+        return BatchEncoding(data=outputs)
+
+    def encode_gpt2(self, inputs: List[str],
+                    max_length):
+        outputs = {
+            'input_ids': [],
+            'attention_mask': []
+        }
+        for text in inputs:
+            tids = [self.bos_id]
+            tids.extend([int(token) + self.start_idx for token in text.split()])
+            if len(tids) > max_length - 1:
+                tids = tids[0:max_length-1]
+            tids.append(self.eos_id)
             attention_mask = [1] * len(tids)
             outputs['input_ids'].append(tids)
             outputs['attention_mask'].append(attention_mask)

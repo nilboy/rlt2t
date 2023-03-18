@@ -4,7 +4,7 @@
 # 准备数据
 
 ```
-训练数据格式, jsonl:
+训练数据格式, json:
 {"text": "xxxxxxxxxxxxx"}
 {"text": "xxxxxxxxxxxxxxxxxxx"}
 ```

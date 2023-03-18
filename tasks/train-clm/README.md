@@ -12,5 +12,6 @@
 # 训练
 
 ```
-bash ./tasks/train-clm/run.sh
+bash ./tasks/train-clm/run.sh ddp 2
+or  bash ./tasks/train-clm/run.sh deepspeed
 ```
