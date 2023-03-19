@@ -1,11 +1,29 @@
 import torch
+import os
+import tempfile
 from torch import nn
 from transformers import AutoModelForMaskedLM, AutoTokenizer, AutoModelForSeq2SeqLM, \
                          AutoModelForCausalLM
+from transformers import BertTokenizer
+
+base_dir = os.path.dirname(os.path.dirname(__file__))
+
+vocab_file = os.path.join(base_dir, 'vocab/vocab.txt')
+
 
 class ModelConverter(object):
     def __init__(self, vocab_size=7200):
         self.vocab_size = vocab_size
+        all_words = []
+        with open(vocab_file) as fin:
+            for line in fin:
+                all_words.append(line.strip())
+        # 创建不自动删除的临时文本文件
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp_file:
+            for word in all_words[0:vocab_size]:
+                tmp_file.write(word + '\n')
+        self.tokenizer = BertTokenizer(tmp_file.name)
+        os.remove(tmp_file.name)
 
     def convert_bert_model(self,
                            input_model_name,
@@ -27,7 +45,7 @@ class ModelConverter(object):
         model.config.vocab_size = vocab_size
         model.half()
         model.save_pretrained(output_model_name)
-        tokenizer.save_pretrained(output_model_name)
+        self.tokenizer.save_pretrained(output_model_name)
 
     def convert_t5_model(self,
                          input_model_name,
@@ -47,7 +65,9 @@ class ModelConverter(object):
         model.config.vocab_size = vocab_size
         model.half()
         model.save_pretrained(output_model_name)
-        tokenizer.save_pretrained(output_model_name)
+        self.tokenizer.save_pretrained(output_model_name)
+        generate_config_file = os.path.join(output_model_name, 'generation_config.json')
+        os.system(fr"rm {generate_config_file}")
 
     def convert_gpt2_model(self,
                            input_model_name,
@@ -67,4 +87,7 @@ class ModelConverter(object):
         model.config.vocab_size = vocab_size
         model.half()
         model.save_pretrained(output_model_name)
-        tokenizer.save_pretrained(output_model_name)
+
+        self.tokenizer.save_pretrained(output_model_name)
+        generate_config_file = os.path.join(output_model_name, 'generation_config.json')
+        os.system(fr"rm {generate_config_file}")
