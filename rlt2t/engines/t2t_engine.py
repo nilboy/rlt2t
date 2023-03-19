@@ -13,9 +13,9 @@ class T2TEngineCT2(object):
                  model_path,
                  compute_type='default',
                  device='cuda',
-                 start_idx=106, eos_id=105):
+                 start_idx=106, eos_id=105, bos_id=104, num_words=7000):
         self.mapper = TextMapProcessor(start_idx=start_idx,
-                                       eos_id=eos_id)
+                                       eos_id=eos_id, bos_id=bos_id, num_words=num_words)
         self.ct2_model = ctranslate2.Translator(model_path,
                                                 compute_type=compute_type,
                                                 device=device)

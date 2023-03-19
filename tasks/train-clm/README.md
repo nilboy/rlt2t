@@ -15,3 +15,9 @@
 bash ./tasks/train-clm/run.sh ddp 2
 or  bash ./tasks/train-clm/run.sh deepspeed
 ```
+
+# 模型转换
+
+```
+ct2-transformers-converter --model input_model_dir --output_dir output_model_dir
+```
