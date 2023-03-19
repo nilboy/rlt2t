@@ -1,10 +1,10 @@
 params=(
-      --model_name_or_path /root/autodl-tmp/models/IDEA-CCNL/Wenzhong2.0-GPT2-3.5B-chinese \
+      --model_name_or_path /root/autodl-tmp/ct-models/IDEA-CCNL/Wenzhong2.0-GPT2-3.5B-chinese \
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
       --eval_steps 1000 \
-      --train_file /root/autodl-tmp/data/train.json \
+      --train_file /root/autodl-tmp/data/test.json \
       --validation_file /root/autodl-tmp/data/test.json \
       --output_dir /root/autodl-tmp/output-models/train-clm-bf16 \
       --max_seq_length 512 \

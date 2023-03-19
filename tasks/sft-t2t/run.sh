@@ -1,5 +1,5 @@
 params=(
-      --model_name_or_path /root/autodl-tmp/models/IDEA-CCNL/Randeng-T5-784M \
+      --model_name_or_path /root/autodl-tmp/ct-models/IDEA-CCNL/Randeng-T5-784M \
       --do_train \
       --do_eval \
       --evaluation_strategy steps \

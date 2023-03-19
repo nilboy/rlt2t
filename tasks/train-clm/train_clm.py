@@ -400,7 +400,7 @@ def main():
         "use_auth_token": True if model_args.use_auth_token else None,
         "eos_token_id": data_args.eos_token_id,
         "bos_token_id": data_args.bos_token_id,
-        "n_layer": 6
+        #"n_layer": 6
     }
     if model_args.config_name:
         config = AutoConfig.from_pretrained(model_args.config_name, **config_kwargs)
@@ -612,7 +612,6 @@ def main():
         if training_args.do_eval and not is_torch_tpu_available()
         else None,
     )
-    import ipdb; ipdb.set_trace()
 
     # Training
     if training_args.do_train:
