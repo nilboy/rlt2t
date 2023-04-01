@@ -1,3 +1,4 @@
 .idea/
 *.pyc
+raw_data/
 __pycache__/
