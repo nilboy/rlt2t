@@ -35,7 +35,7 @@ class ModelConverter(object):
 
         new_embedding_weight = model.bert.get_input_embeddings().weight[0:vocab_size].detach()
         new_cls_weight = model.cls.predictions.decoder.weight[0:vocab_size].detach()
-        new_cls_bias = model.cls.predictions.bias.data.detach()
+        new_cls_bias = model.cls.predictions.bias.data[0:vocab_size].detach()
 
         model.set_input_embeddings(nn.Embedding.from_pretrained(new_embedding_weight))
         model.cls.predictions.decoder = nn.Linear(in_features=model.config.hidden_size,
