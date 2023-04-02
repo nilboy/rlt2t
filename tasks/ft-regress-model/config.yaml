@@ -3,8 +3,9 @@ trainer:
   logger: true
   default_root_dir: "/root/autodl-tmp/output-models/score-model"
   accelerator: gpu
-  devices: 1
-  strategy: deepspeed_stage_2_offload
+  devices: 4
+  #strategy: deepspeed_stage_2_offload
+  strategy: ddp
   accumulate_grad_batches: 1
   # 32
   precision: bf16
@@ -12,7 +13,18 @@ trainer:
   max_steps: 30000
   gradient_clip_val: 0.5
   callbacks:
-    - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
+#    - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
+#      init_args:
+#        save_top_k: 1 # save k best models (determined by above metric)
+#        monitor: 'val/mse'
+#        mode: 'min'
+#        save_last: True # additionaly always save model from last epoch
+#        verbose: True
+#        dirpath: "/root/autodl-tmp/output-models/score-model"
+#        filename: "epoch_{epoch}_{step}"
+#        auto_insert_metric_name: False
+#        every_n_train_steps: 1000
+    - class_path: pytorch_lightning.callbacks.ModelCheckpoint
       init_args:
         save_top_k: 1 # save k best models (determined by above metric)
         monitor: 'val/mse'
@@ -35,19 +47,19 @@ trainer:
 model:
   class_path: rlt2t.models.bert_model.BertModelForRegression
   init_args:
-    init_model: "/root/autodl-tmp/models/IDEA-CCNL/Erlangshen-MegatronBert-1.3B"
+    init_model: "/root/autodl-tmp/mlm"
     lr: 0.0001
     weight_decay: 0.01
-    warmup_step: 100
-    max_iters: 60000
+    warmup_step: 1000
+    max_iters: 30000
 
 data:
   class_path: rlt2t.datasets.bert_text_datamodule.BertTextDataModule
   init_args:
-    data_dir: "/root/autodl-tmp/data/score-data"
+    data_dir: "data/rm"
     batch_size: 8
     max_token_len: 256
     start_idx: 106
-    num_words: 7000
+    num_words: 1800
     eos_id: 105
     num_workers: 4

@@ -53,8 +53,15 @@ bash tasks/sft-t2t/run.sh ddp 1 14889 4
 # 导出模型
 # ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 ```
-5. 构造RM数据集
-6. 训练RM模型
-7. 构造弱标签数据集
-8. 训练弱标签t2t模型
-9. 训练人工标签t2t模型
+5. 通过clm模型构造大数据集
+```
+# 导出模型
+ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
+# 生成数据
+
+```
+6. 构造RM数据集
+7. 训练RM模型
+8. 构造弱标签数据集
+9. 训练弱标签t2t模型
+10. 训练人工标签t2t模型
