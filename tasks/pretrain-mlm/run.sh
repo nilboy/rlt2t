@@ -3,7 +3,7 @@ params=(
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
-      --eval_steps 1000 \
+      --eval_steps 2000 \
       --train_file data/mlm/train.json \
       --validation_file data/mlm/test.json \
       --output_dir /root/autodl-tmp/output-models/pretrain-mlm \
@@ -17,10 +17,10 @@ params=(
       --learning_rate 2e-5 \
       --weight_decay 0.0 \
       --max_steps 100000 \
-      --warmup_steps 1000 \
+      --warmup_steps 5000 \
       --lr_scheduler_type linear \
       --logging_steps 20 \
-      --save_steps 500 \
+      --save_steps 2000 \
       --save_total_limit 1 \
       --bf16
 )

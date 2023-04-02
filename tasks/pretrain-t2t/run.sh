@@ -3,7 +3,7 @@ params=(
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
-      --eval_steps 1000 \
+      --eval_steps 2000 \
       --train_file data/pt2t/train.json \
       --validation_file data/pt2t/test.json \
       --text_column text \
@@ -18,10 +18,10 @@ params=(
       --learning_rate 2e-5 \
       --weight_decay 0.0 \
       --max_steps 100000 \
-      --warmup_steps 1000 \
+      --warmup_steps 5000 \
       --lr_scheduler_type linear \
       --logging_steps 20 \
-      --save_steps 1000 \
+      --save_steps 2000 \
       --save_total_limit 1 \
       --predict_with_generate \
       --bf16
