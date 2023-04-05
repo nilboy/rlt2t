@@ -1,6 +1,7 @@
 kfold_id=$4
+model_name="t2t"
 params=(
-      --model_name_or_path /root/autodl-tmp/output-models/pretrain-t2t \
+      --model_name_or_path /home/jiangxinghua/models/t2t \
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
@@ -10,22 +11,22 @@ params=(
       --text_column text \
       --summary_column summary \
       --source_prefix "" \
-      --output_dir /root/autodl-tmp/output-models/sft-t2t-$kfold_id \
+      --output_dir /root/autodl-tmp/output-models/sft-t2t-$kfold_id-$model_name \
       --text_map_start_idx 106 \
       --text_map_num_words 1800 \
-      --per_device_train_batch_size 16 \
-      --gradient_accumulation_steps 2 \
-      --per_device_eval_batch_size 4 \
-      --learning_rate 2e-5 \
+      --per_device_train_batch_size 64 \
+      --gradient_accumulation_steps 1 \
+      --per_device_eval_batch_size 16 \
+      --learning_rate 1e-5 \
       --weight_decay 0.0 \
       --max_steps 20000 \
       --warmup_steps 1000 \
       --lr_scheduler_type linear \
       --logging_steps 20 \
-      --save_steps 1000 \
-      --save_total_limit 1 \
+      --save_steps 500 \
+      --save_total_limit 5 \
       --predict_with_generate \
-      --bf16
+      --fp16
 )
 
 if [[ "$1" == "deepspeed" ]]; then

@@ -23,6 +23,7 @@ class ModelConverter(object):
             for word in all_words[0:vocab_size]:
                 tmp_file.write(word + '\n')
         self.tokenizer = BertTokenizer(tmp_file.name)
+        self.tokenizer.bos_token_id = 0
         os.remove(tmp_file.name)
 
     def convert_bert_model(self,
@@ -63,6 +64,33 @@ class ModelConverter(object):
                                   out_features=vocab_size, bias=False)
         model.lm_head.weight.data = new_lm_weight
         model.config.vocab_size = vocab_size
+        model.config.decoder_start_token_id = 0
+        model.half()
+        model.save_pretrained(output_model_name)
+        self.tokenizer.save_pretrained(output_model_name)
+        generate_config_file = os.path.join(output_model_name, 'generation_config.json')
+        os.system(fr"rm {generate_config_file}")
+
+    def convert_bart_model(self,
+                         input_model_name,
+                         output_model_name, vocab_size=None):
+        if vocab_size is None:
+            vocab_size = self.vocab_size
+        tokenizer = AutoTokenizer.from_pretrained(input_model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(input_model_name)
+
+        new_embedding_weight = model.model.shared.weight[0:vocab_size].detach()
+        new_lm_weight = model.lm_head.weight.data[0:vocab_size].detach()
+
+        model.set_input_embeddings(nn.Embedding.from_pretrained(new_embedding_weight))
+        model.lm_head = nn.Linear(in_features=model.config.hidden_size,
+                                  out_features=vocab_size, bias=False)
+        model.lm_head.weight.data = new_lm_weight
+
+        model._resize_final_logits_bias(vocab_size)
+
+        model.config.vocab_size = vocab_size
+        model.config.decoder_start_token_id = 0
         model.half()
         model.save_pretrained(output_model_name)
         self.tokenizer.save_pretrained(output_model_name)

@@ -19,7 +19,8 @@ class TextMapProcessor(object):
         return " ".join([str(tid - self.start_idx) for tid in tids])
 
     def encode_t5(self, inputs: List[str],
-                  max_length, add_special_tokens=True):
+                  max_length, add_special_tokens=True,
+                  pad=False):
         outputs = {
             'input_ids': [],
             'attention_mask': []
@@ -32,6 +33,9 @@ class TextMapProcessor(object):
             else:
                 tids = tids[0:max_length]
             attention_mask = [1] * len(tids)
+            if pad:
+                self.pad_to_max_length(tids, max_length)
+                self.pad_to_max_length(attention_mask, max_length)
             outputs['input_ids'].append(tids)
             outputs['attention_mask'].append(attention_mask)
         return BatchEncoding(data=outputs)

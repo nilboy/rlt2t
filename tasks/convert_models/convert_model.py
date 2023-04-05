@@ -10,6 +10,8 @@ def convert_model(input_model_name,
         model_convert.convert_bert_model(input_model_name, output_model_name)
     elif model_type == 't5':
         model_convert.convert_t5_model(input_model_name, output_model_name)
+    elif model_type == 'bart':
+        model_convert.convert_bart_model(input_model_name, output_model_name)
     elif model_type == 'gpt2':
         model_convert.convert_gpt2_model(input_model_name, output_model_name)
     else:

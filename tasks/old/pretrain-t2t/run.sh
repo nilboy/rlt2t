@@ -1,5 +1,5 @@
 params=(
-      --model_name_or_path /root/autodl-tmp/pmodels/Randeng-T5-784M \
+      --model_name_or_path /root/autodl-tmp/pmodels/bart-base \
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
@@ -12,9 +12,9 @@ params=(
       --max_target_length 96 \
       --text_map_start_idx 106 \
       --text_map_num_words 1800 \
-      --per_device_train_batch_size 16 \
-      --gradient_accumulation_steps 2 \
-      --per_device_eval_batch_size 4 \
+      --per_device_train_batch_size 256 \
+      --gradient_accumulation_steps 1 \
+      --per_device_eval_batch_size 16 \
       --learning_rate 2e-5 \
       --weight_decay 0.0 \
       --max_steps 100000 \
@@ -24,7 +24,7 @@ params=(
       --save_steps 2000 \
       --save_total_limit 1 \
       --predict_with_generate \
-      --bf16
+      --fp16
 )
 
 if [[ "$1" == "deepspeed" ]]; then

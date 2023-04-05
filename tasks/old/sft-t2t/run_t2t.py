@@ -23,6 +23,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from typing import Optional
+import random
 
 import datasets
 import evaluate
@@ -536,12 +537,35 @@ def main():
             f"`{model.__class__.__name__}`. This will lead to loss being calculated twice and will take up more memory"
         )
 
+    def augment_text(my_str):
+        # 将字符串拆分成单词列表
+        words = my_str.split()
+        # 计算需要删除或重复的单词数量
+        num_to_modify = int(len(words) * 0.15)
+        # 生成要删除或重复的单词的索引列表
+        indices = random.sample(range(len(words)), num_to_modify)
+        # 利用列表推导式生成新的单词列表，不包括要删除的单词，重复指定次数的单词添加到新列表中
+        new_words = []
+        for i, word in enumerate(words):
+            if i not in indices:
+                new_words.append(word)
+            else:
+                # 随机选择是删除还是重复
+                if random.random() < 0.5:
+                    # 随机生成重复的次数，最多重复 3 次
+                    repeat_times = random.randint(1, 3)
+                    new_words.extend([word] * repeat_times)
+        # 将新单词列表重新组合成字符串
+        new_str = " ".join(new_words)
+        return new_str
+
     def preprocess_function(examples):
         # remove pairs where at least one record is None
         inputs, targets = [], []
         for i in range(len(examples[text_column])):
             if examples[text_column][i] and examples[summary_column][i]:
-                inputs.append(examples[text_column][i])
+                # inputs.append(examples[text_column][i])
+                inputs.append(augment_text(examples[text_column][i]))
                 targets.append(examples[summary_column][i])
 
         inputs = [prefix + inp for inp in inputs]

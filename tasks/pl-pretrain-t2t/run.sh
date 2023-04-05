@@ -1,0 +1,1 @@
+python tasks/pl-pretrain-t2t/run.py fit --config tasks/pl-pretrain-t2t/config.yaml

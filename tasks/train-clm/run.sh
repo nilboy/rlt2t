@@ -1,5 +1,5 @@
 params=(
-      --model_name_or_path /root/autodl-tmp/pmodels/Wenzhong2.0-GPT2-3.5B-chinese \
+      --model_name_or_path /root/autodl-tmp/pmodels/gpt2 \
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
@@ -10,9 +10,9 @@ params=(
       --max_seq_length 256 \
       --text_map_start_idx 106 \
       --text_map_num_words 1800 \
-      --per_device_train_batch_size 2 \
-      --gradient_accumulation_steps 4 \
-      --per_device_eval_batch_size 4 \
+      --per_device_train_batch_size 224 \
+      --gradient_accumulation_steps 1 \
+      --per_device_eval_batch_size 16 \
       --learning_rate 2e-5 \
       --weight_decay 0.0 \
       --max_steps 100000 \
@@ -21,7 +21,7 @@ params=(
       --logging_steps 20 \
       --save_steps 2000 \
       --save_total_limit 1 \
-      --bf16
+      --fp16
 )
 
 if [[ "$1" == "deepspeed" ]]; then
