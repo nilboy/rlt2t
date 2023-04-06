@@ -68,6 +68,25 @@ class T2TEngineCT2(object):
                 preds.append(preds_item)
         return preds
 
+    def get_scores(self, records, batch_size: int = 64):
+        """
+        records: [
+            {'input': str, 'output': str}
+        ]
+        """
+        source_list, target_list = [], []
+        for record in records:
+            source_tokens = [int(item) + self.mapper.start_idx for item in record['input'].split()]
+            source_tokens.append(self.mapper.eos_id)
+            target_tokens = [int(item) + self.mapper.start_idx for item in record['output'].split()]
+            source_list.append([self.id2token[item] for item in source_tokens])
+            target_list.append([self.id2token[item] for item in target_tokens])
+        scores = self.ct2_model.score_batch(source_list,
+                                            target_list,
+                                            max_batch_size=batch_size)
+        scores = [sum(item.log_probs) for item in scores]
+        return scores
+
 
 class T2TEngineHF(object):
     def __init__(self,

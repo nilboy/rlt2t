@@ -20,7 +20,7 @@ def calculate_scores(label_list, pred_list):
     return cider_scores
 
 def construct_rm_data_kfold(data_dir='data',
-                            model_dir="/root/autodl-tmp/k-t2t",
+                            model_dir="/root/autodl-tmp/output-models/t2t/ct2",
                             kfold=0,
                             max_score=10,
                             use_gt=False, use_beam=False):
@@ -33,7 +33,7 @@ def construct_rm_data_kfold(data_dir='data',
                 'text': (record['clinical'] + " " + record['description']).strip(),
                 'gt_summary': record['diagnosis']
             })
-    engine = T2TEngineCT2(os.path.join(model_dir, f'm{kfold}'),
+    engine = T2TEngineCT2(os.path.join(model_dir, f'{kfold}'),
                           compute_type="int8",
                           num_words=1800)
     texts = [item['text'] for item in records]
@@ -51,7 +51,8 @@ def construct_rm_data_kfold(data_dir='data',
                                               max_input_length=256,
                                               max_decoding_length=96,
                                               length_penalty=1.0,
-                                              sampling_topk=10)
+                                              sampling_topk=3,
+                                              sampling_temperature=0.6)
     output_texts = [item[0] for item in output_texts]
     gt_output_texts = [record['gt_summary'] for record in records]
     scores = calculate_scores(gt_output_texts, output_texts)/max_score
@@ -66,7 +67,7 @@ def construct_rm_data_kfold(data_dir='data',
 
 
 def construct_rm_data(data_dir="data",
-                      model_dir="/root/autodl-tmp/k-t2t",
+                      model_dir="/root/autodl-tmp/output-models/t2t/ct2",
                       kfold_num=5,
                       max_score=10, max_iters=10):
     keys = set()

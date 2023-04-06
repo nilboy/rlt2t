@@ -5,6 +5,7 @@ from transformers import AutoModelForSequenceClassification
 from pytorch_lightning import LightningModule
 from transformers.optimization import get_polynomial_decay_schedule_with_warmup
 from torch.optim import AdamW
+from transformers import BertTokenizer
 
 
 class BertModelForRegression(LightningModule):
@@ -16,8 +17,9 @@ class BertModelForRegression(LightningModule):
                  max_iters: int=10000):
         super().__init__()
         self.save_hyperparameters()
-        self.bert = AutoModelForSequenceClassification.from_pretrained(init_model,
+        self.model = AutoModelForSequenceClassification.from_pretrained(init_model,
                                                                        num_labels=1, return_dict=True)
+        self.tokenizer = BertTokenizer.from_pretrained(init_model)
 
         self.train_accuracy = MeanSquaredError()
         self.val_accuracy = MeanSquaredError()
@@ -28,7 +30,7 @@ class BertModelForRegression(LightningModule):
                 token_type_ids=None,
                 attention_mask=None,
                 labels=None):
-        output = self.bert(input_ids, attention_mask=attention_mask,
+        output = self.model(input_ids, attention_mask=attention_mask,
                            token_type_ids=token_type_ids, labels=labels)
         return output.loss, output.logits
 
