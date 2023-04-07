@@ -28,10 +28,11 @@ def construct_rm_data_kfold(data_dir='data',
     records = []
     for line in open(os.path.join(data_dir, 'base/train.json')):
         record = json.loads(line)
-        records.append({
-            'text': (record['clinical'] + " " + record['description']).strip(),
-            'gt_summary': record['diagnosis']
-        })
+        if record['kfold_id'] == kfold:
+            records.append({
+                'text': (record['clinical'] + " " + record['description']).strip(),
+                'gt_summary': record['diagnosis']
+            })
     engine = T2TEngineCT2(os.path.join(model_dir, f'{kfold}'),
                           compute_type="int8",
                           num_words=1800)

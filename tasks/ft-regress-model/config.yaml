@@ -1,21 +1,21 @@
 seed_everything: 42
 trainer:
   logger: true
-  default_root_dir: "/root/autodl-tmp/output-models/score-model"
+  default_root_dir: "/root/autodl-tmp/output-models/score-model-4"
   accelerator: gpu
-  devices: 1
+  devices: 4
   #strategy: deepspeed_stage_2_offload
   strategy: ddp
   accumulate_grad_batches: 1
   # 32
   precision: 16
-  val_check_interval: 500
-  max_steps: 30000
+  val_check_interval: 1000
+  max_steps: 300000
   gradient_clip_val: 0.5
   callbacks:
     - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
       init_args:
-        save_top_k: 3 # save k best models (determined by above metric)
+        save_top_k: 2 # save k best models (determined by above metric)
         monitor: 'val/mse'
         mode: 'min'
         save_last: True # additionaly always save model from last epoch
@@ -23,7 +23,7 @@ trainer:
         dirpath: "/root/autodl-tmp/output-models/score-model"
         filename: "epoch_{epoch}_{step}"
         auto_insert_metric_name: False
-        every_n_train_steps: 500
+        every_n_train_steps: 1000
 #    - class_path: pytorch_lightning.callbacks.ModelCheckpoint
 #      init_args:
 #        save_top_k: 1 # save k best models (determined by above metric)
@@ -38,26 +38,26 @@ trainer:
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: step
-    - class_path: pytorch_lightning.callbacks.StochasticWeightAveraging
-      init_args:
-        swa_lrs: 3e-5
-        swa_epoch_start: 2
-        annealing_epochs: 5
+#    - class_path: pytorch_lightning.callbacks.StochasticWeightAveraging
+#      init_args:
+#        swa_lrs: 3e-5
+#        swa_epoch_start: 2
+#        annealing_epochs: 5
 
 model:
   class_path: rlt2t.models.bert_model.BertModelForRegression
   init_args:
     init_model: "/root/autodl-tmp/mlm"
-    lr: 1e-4
+    lr: 2e-5
     weight_decay: 0.01
     warmup_step: 1000
-    max_iters: 30000
+    max_iters: 300000
 
 data:
   class_path: rlt2t.datasets.bert_text_datamodule.BertTextDataModule
   init_args:
     data_dir: "data/rm"
-    batch_size: 128
+    batch_size: 64
     max_token_len: 256
     start_idx: 106
     num_words: 1800

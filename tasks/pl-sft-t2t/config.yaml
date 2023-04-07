@@ -2,11 +2,11 @@ seed_everything: 42
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/t2t/${oc.env:KFOLD}
+  default_root_dir: /root/autodl-tmp/output-models/t2t-uer-bart-large/${oc.env:KFOLD}
   accelerator: gpu
   devices: 1
   strategy: ddp
-  accumulate_grad_batches: 1
+  accumulate_grad_batches: 2
   precision: 16
   check_val_every_n_epoch: 3
   max_steps: 10000
@@ -19,7 +19,7 @@ trainer:
 #        annealing_epochs: 15
     - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
       init_args:
-        save_top_k: 4 # save k best models (determined by above metric)
+        save_top_k: 1 # save k best models (determined by above metric)
         monitor: 'val/bleu4'
         mode: 'max'
         save_last: True # additionaly always save model from last epoch
@@ -35,8 +35,8 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_model.T2TModel
   init_args:
-    init_model: "/root/autodl-tmp/output-models/pretrain-t2t"
-    lr: 5e-5
+    init_model: "/root/autodl-tmp/pmodels/uer/bart-large-chinese-cluecorpussmall"
+    lr: 2e-5
     weight_decay: 0.01
     warmup_step: 500
     max_iters: 10000
@@ -45,7 +45,7 @@ data:
   class_path: rlt2t.datasets.t2t_datamodule.T2TDataModule
   init_args:
     data_dir: data/t2t/${oc.env:KFOLD}
-    batch_size: 64
+    batch_size: 32
     max_source_length: 256
     max_target_length: 96
     start_idx: 106

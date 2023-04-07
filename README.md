@@ -58,10 +58,19 @@ bash tasks/sft-t2t/run.sh ddp 1 14889 4
 # 导出模型
 ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 # 生成数据
-
+python tools/generate_clm_data.py --model_path clm_ct2 --output_file data/gen_clm.json --generate_num 1000000
 ```
 6. 构造RM数据集
+```
+python construct_rm_data.py
+```
 7. 训练RM模型
+```
+bash ./ft-regress-model/run.sh
+```
 8. 构造弱标签数据集
+```
+python generate_
+```
 9. 训练弱标签t2t模型
 10. 训练人工标签t2t模型
