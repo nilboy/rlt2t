@@ -103,7 +103,7 @@ class Predictor(object):
         if self.use_sample:
             for model_path in tqdm(self.t2t_model_paths, desc='sample predict...'):
                 items = self._predict_texts(texts,
-                                            model_path, is_sample=False)
+                                            model_path, is_sample=True)
                 output_records_list.extend(items)
         if not return_best:
             return output_records_list

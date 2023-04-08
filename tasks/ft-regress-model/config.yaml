@@ -1,16 +1,16 @@
 seed_everything: 42
 trainer:
   logger: true
-  default_root_dir: "/root/autodl-tmp/output-models/score-model-4"
+  default_root_dir: "/root/autodl-tmp/output-models/roberta-large-reg"
   accelerator: gpu
-  devices: 4
+  devices: 7
   #strategy: deepspeed_stage_2_offload
   strategy: ddp
   accumulate_grad_batches: 1
   # 32
   precision: 16
   val_check_interval: 1000
-  max_steps: 300000
+  max_steps: 100000
   gradient_clip_val: 0.5
   callbacks:
     - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
@@ -20,7 +20,7 @@ trainer:
         mode: 'min'
         save_last: True # additionaly always save model from last epoch
         verbose: True
-        dirpath: "/root/autodl-tmp/output-models/score-model"
+        dirpath: "/root/autodl-tmp/output-models/roberta-large-reg"
         filename: "epoch_{epoch}_{step}"
         auto_insert_metric_name: False
         every_n_train_steps: 1000
@@ -47,11 +47,11 @@ trainer:
 model:
   class_path: rlt2t.models.bert_model.BertModelForRegression
   init_args:
-    init_model: "/root/autodl-tmp/mlm"
+    init_model: "/root/autodl-tmp/models/roberta-large"
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 1000
-    max_iters: 300000
+    max_iters: 100000
 
 data:
   class_path: rlt2t.datasets.bert_text_datamodule.BertTextDataModule

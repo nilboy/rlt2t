@@ -70,7 +70,7 @@ bash ./ft-regress-model/run.sh
 ```
 8. 构造弱标签数据集
 ```
-python generate_
+python generate_weak_data.py
 ```
 9. 训练弱标签t2t模型
 10. 训练人工标签t2t模型

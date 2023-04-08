@@ -2,14 +2,14 @@ seed_everything: 42
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/t2t-fgm-e/${oc.env:KFOLD}
+  default_root_dir: /root/autodl-tmp/output-models/weak_t2t
   accelerator: gpu
-  devices: 1
+  devices: 4
   strategy: ddp
   accumulate_grad_batches: 1
   precision: 16
-  check_val_every_n_epoch: 3
-  max_steps: 10000
+  check_val_every_n_epoch: 1
+  max_steps: 100000
   gradient_clip_val: 0.5
   callbacks:
 #    - class_path: pytorch_lightning.callbacks.StochasticWeightAveraging
@@ -27,7 +27,7 @@ trainer:
         dirpath: ${trainer.default_root_dir}
         filename: "epoch_{epoch}"
         auto_insert_metric_name: False
-        every_n_epochs: 3
+        every_n_epochs: 1
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: step
@@ -39,13 +39,13 @@ model:
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 500
-    max_iters: 10000
+    max_iters: 100000
 
 data:
   class_path: rlt2t.datasets.t2t_datamodule.T2TDataModule
   init_args:
-    data_dir: data/t2t/${oc.env:KFOLD}
-    batch_size: 128
+    data_dir: data/weak_t2t
+    batch_size: 32
     max_source_length: 256
     max_target_length: 96
     start_idx: 106

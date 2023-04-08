@@ -70,7 +70,7 @@ def construct_rm_data_kfold(data_dir='data',
 
 
 def construct_rm_data(data_dir="data",
-                      model_dir="/root/autodl-tmp/output-models/t2t/ct2",
+                      model_dir="/root/autodl-tmp/t2t/ct2",
                       kfold_num=5,
                       max_score=10, max_iters=10):
     keys = set()
