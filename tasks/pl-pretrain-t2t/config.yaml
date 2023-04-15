@@ -2,14 +2,14 @@ seed_everything: 42
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/pretrain-t2t
+  default_root_dir: /root/autodl-tmp/output-models/pretrain-t2t-large
   accelerator: gpu
-  devices: 1
+  devices: 4
   strategy: ddp
   accumulate_grad_batches: 1
   precision: 16
   check_val_every_n_epoch: 10
-  max_steps: 8000
+  max_steps: 20000
   gradient_clip_val: 0.5
   callbacks:
     - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
@@ -30,17 +30,17 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_model.T2TModel
   init_args:
-    init_model: "/root/autodl-tmp/pmodels/bart-base"
+    init_model: "/root/autodl-tmp/bart-large"
     lr: 5e-5
     weight_decay: 0.01
     warmup_step: 1000
-    max_iters: 8000
+    max_iters: 20000
 
 data:
   class_path: rlt2t.datasets.t2t_pretrain_datamodule.T2TPretrainDataModule
   init_args:
     data_dir: data/pt2t
-    batch_size: 512
+    batch_size: 64
     max_source_length: 256
     max_target_length: 96
     start_idx: 106

@@ -2,7 +2,7 @@ seed_everything: 42
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/t2t-fgm-e/${oc.env:KFOLD}
+  default_root_dir: /root/autodl-tmp/output-models/t2t-69/${oc.env:KFOLD}
   accelerator: gpu
   devices: 1
   strategy: ddp
@@ -35,7 +35,7 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_model.T2TModel
   init_args:
-    init_model: "/root/autodl-tmp/pretrain-t2t"
+    init_model: "/root/autodl-tmp/output-models/pretrain-t2t-large/epoch_69"
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 500
@@ -45,7 +45,7 @@ data:
   class_path: rlt2t.datasets.t2t_datamodule.T2TDataModule
   init_args:
     data_dir: data/t2t/${oc.env:KFOLD}
-    batch_size: 128
+    batch_size: 64
     max_source_length: 256
     max_target_length: 96
     start_idx: 106
