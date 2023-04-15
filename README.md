@@ -74,3 +74,9 @@ python generate_weak_data.py
 ```
 9. 训练弱标签t2t模型
 10. 训练人工标签t2t模型
+
+---
+* 启动rank-data服务:
+```
+python tools/rank_data_app.py /root/autodl-tmp/output-models/t2t-base/4 9678
+```

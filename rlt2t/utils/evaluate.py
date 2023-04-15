@@ -7,6 +7,7 @@ import six
 from six.moves import cPickle
 import os
 import csv
+from torchmetrics import BLEUScore
 
 
 def precook(s, n=4, out=False):
@@ -342,3 +343,27 @@ class CiderD:
 
     def method(self):
         return "CIDEr-D"
+
+def calculate_scores(label_list, pred_list,
+                     bleu4_rate=0.0):
+    cd_scorer = CiderD(df='corpus', sigma=15)
+    gts = {
+        idx: [label]
+        for idx, label in enumerate(label_list)
+    }
+
+    res = [
+        {'image_id': idx, "caption": [pred]}
+        for idx, pred in enumerate(pred_list)
+    ]
+    cider_score, cider_scores = cd_scorer.compute_score(gts, res)
+    if bleu4_rate <= 0.0:
+        return cider_scores
+    bleu_score_list = []
+    for i in range(len(label_list)):
+        bleu_scorer = BLEUScore(4)
+        preds = [pred_list[i]]
+        target = [[label_list[i]]]
+        bleu_score_list.append(bleu_scorer(preds, target).item())
+    bleu_score = np.array(bleu_score_list)
+    return (1.0 - bleu4_rate) * cider_scores + bleu4_rate * bleu_score
