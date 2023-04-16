@@ -79,4 +79,5 @@ python generate_weak_data.py
 * 启动rank-data服务:
 ```
 python tools/rank_data_app.py /root/autodl-tmp/output-models/t2t-base/4 9678
+python tools/ensemble_rank_data_app.py /root/autodl-tmp/ct2 9678
 ```

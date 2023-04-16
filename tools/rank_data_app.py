@@ -10,6 +10,7 @@ from loguru import logger
 from readerwriterlock import rwlock
 from rlt2t.engines.t2t_engine import T2TEngineCT2
 from rlt2t.utils.evaluate import calculate_scores
+import random
 
 
 def get_last_model_path(base_model_dir):
@@ -29,7 +30,7 @@ def get_last_model_path(base_model_dir):
 class Model(object):
     def __init__(self, base_model_dir,
                  file_path: str = "data/t2t/train.json",
-                 interval_seconds: int = 60):
+                 interval_seconds: int = 10):
         self.file_path = file_path
         self.base_model_dir = base_model_dir
         self.ct2_model_dir = os.path.join(base_model_dir, 'ct2')
@@ -76,8 +77,9 @@ class Model(object):
             self.data = gen_data
 
     def _update(self) -> None:
+        beam_size = 6
         cur_max_model_name = get_last_model_path(self.base_model_dir)
-        if cur_max_model_name == self.max_model_name:
+        if cur_max_model_name == self.max_model_name or cur_max_model_name == "":
             return
         self.max_model_name = cur_max_model_name
         cur_model_path = os.path.join(self.base_model_dir, self.max_model_name)
@@ -86,22 +88,41 @@ class Model(object):
         os.system(ct2_cmd)
         engine = T2TEngineCT2(self.ct2_model_dir, compute_type="int8", num_words=1800)
         texts = [item['text'] for item in self.records]
-        output_texts = engine.predict_records(texts, batch_size=64,
-                                              beam_size=1,
-                                              max_input_length=256,
-                                              max_decoding_length=96,
-                                              length_penalty=1.0,
-                                              num_hypotheses=2,
-                                              sampling_topk=3,
-                                              sampling_temperature=0.6)
-        output_texts_1 = [item[0] for item in output_texts]
-        output_texts_2 = [item[1] for item in output_texts]
-        output_texts_1_scores = calculate_scores(texts, output_texts_1)
-        output_texts_2_scores = calculate_scores(texts, output_texts_2)
+        summaries = [item['summary'] for item in self.records]
+        output_texts_gen = engine.predict_records(texts, batch_size=64,
+                                                  beam_size=1,
+                                                  max_input_length=256,
+                                                  max_decoding_length=96,
+                                                  length_penalty=1.0,
+                                                  num_hypotheses=beam_size,
+                                                  sampling_topk=3,
+                                                  sampling_temperature=0.8)
+        # output_texts_gen = engine.predict_records(texts, batch_size=64,
+        #                                           beam_size=4,
+        #                                           max_input_length=256,
+        #                                           max_decoding_length=96,
+        #                                           length_penalty=1.0,
+        #                                           num_hypotheses=1,
+        #                                           sampling_topk=3,
+        #                                           sampling_temperature=0.8)
+        output_texts = []
+        for i in range(len(self.records)):
+            c_texts = list(set(output_texts_gen[i] + [self.records[i]['summary']]))
+            if len(c_texts) < 2:
+                c_texts.append(c_texts[0])
+            output_texts.append(c_texts)
+        output_texts_1, output_texts_2 = [], []
+        for item in output_texts:
+            idx1, idx2 = random.sample(range(0, len(item)), 2)
+            output_texts_1.append(item[idx1])
+            output_texts_2.append(item[idx2])
+        output_texts_1_scores = calculate_scores(summaries, output_texts_1)
+        output_texts_2_scores = calculate_scores(summaries, output_texts_2)
         gen_data = {}
         for i in range(len(self.records)):
             text = self.records[i]['text']
             summary = self.records[i]['summary']
+            use_rank = 1.0
             if output_texts_1_scores[i] > output_texts_2_scores[i]:
                 rank_a = output_texts_1[i]
                 rank_b = output_texts_2[i]
@@ -112,6 +133,8 @@ class Model(object):
                 rank_b = output_texts_1[i]
                 rank_a_score = output_texts_2_scores[i]
                 rank_b_score = output_texts_1_scores[i]
+            if rank_a == rank_b or rank_a_score == rank_b_score:
+                use_rank = 0.0
             gen_data[text] = {
                 'text': text,
                 'summary': summary,
@@ -119,7 +142,7 @@ class Model(object):
                 'rank_b': rank_b,
                 'rank_a_score': rank_a_score,
                 'rank_b_score': rank_b_score,
-                'use_rank': 1.0
+                'use_rank': use_rank
             }
         logger.info('begin update data...')
         with self._rwlock.gen_wlock():

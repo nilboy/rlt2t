@@ -1,0 +1,58 @@
+seed_everything: 42
+
+trainer:
+  logger: true
+  default_root_dir: /root/autodl-tmp/output-models/t2t-rank-1.0/${oc.env:KFOLD}
+  accelerator: gpu
+  devices: 3
+  strategy: ddp
+  accumulate_grad_batches: 1
+  precision: 16
+  check_val_every_n_epoch: 2
+  max_steps: 20000
+  gradient_clip_val: 0.5
+  callbacks:
+#    - class_path: pytorch_lightning.callbacks.StochasticWeightAveraging
+#      init_args:
+#        swa_lrs: 2e-5
+#        swa_epoch_start: 5
+#        annealing_epochs: 15
+    - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
+      init_args:
+        save_top_k: 2 # save k best models (determined by above metric)
+        monitor: 'val/bleu4'
+        mode: 'max'
+        save_last: True # additionaly always save model from last epoch
+        verbose: True
+        dirpath: ${trainer.default_root_dir}
+        filename: "epoch_{epoch}"
+        auto_insert_metric_name: False
+        every_n_epochs: 2
+    - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: step
+
+model:
+  class_path: rlt2t.models.t2t_rank_model.T2TRankModel
+  init_args:
+    init_model: "/root/autodl-tmp/pretrain-t2t"
+    lr: 2e-5
+    weight_decay: 0.01
+    warmup_step: 500
+    max_iters: 20000
+    rank_start_iters: 0
+    rank_loss_rate: 1.0
+
+data:
+  class_path: rlt2t.datasets.t2t_rank_datamodule.T2TRankDataModule
+  init_args:
+    data_dir: data/t2t/${oc.env:KFOLD}
+    batch_size: 32
+    max_source_length: 256
+    max_target_length: 96
+    start_idx: 106
+    num_words: 1800
+    eos_id: 105
+    num_workers: 1
+    augment_text: True
+    port: 9527
