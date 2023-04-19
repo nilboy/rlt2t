@@ -1,0 +1,67 @@
+seed_everything: 42
+trainer:
+  logger: true
+  default_root_dir: "/root/autodl-tmp/output-models/rm2-model-all"
+  accelerator: gpu
+  devices: 1
+  #strategy: deepspeed_stage_2_offload
+  strategy: ddp
+  accumulate_grad_batches: 1
+  # 32
+  precision: 16
+  val_check_interval: 500
+#  check_val_every_n_epoch: 1
+  max_steps: 80000
+  gradient_clip_val: 0.5
+  callbacks:
+    - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
+      init_args:
+        save_top_k: 4 # save k best models (determined by above metric)
+        monitor: 'val/acc'
+        mode: 'max'
+        save_last: True # additionaly always save model from last epoch
+        verbose: True
+        dirpath: "/root/autodl-tmp/output-models/rm2-model"
+        filename: "epoch_{epoch}_{step}"
+        auto_insert_metric_name: False
+        every_n_train_steps: 1000
+#        every_n_epochs: 1
+#    - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+#      init_args:
+#        save_top_k: 1 # save k best models (determined by above metric)
+#        monitor: 'val/mse'
+#        mode: 'min'
+#        save_last: True # additionaly always save model from last epoch
+#        verbose: True
+#        dirpath: "/root/autodl-tmp/output-models/score-model"
+#        filename: "epoch_{epoch}_{step}"
+#        auto_insert_metric_name: False
+#        every_n_train_steps: 1000
+    - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: step
+#    - class_path: pytorch_lightning.callbacks.StochasticWeightAveraging
+#      init_args:
+#        swa_lrs: 3e-5
+#        swa_epoch_start: 2
+#        annealing_epochs: 5
+
+model:
+  class_path: rlt2t.models.bert_rm_model.BertModelRMForRegression
+  init_args:
+    init_model: "/root/autodl-tmp/mlm"
+    lr: 2e-5
+    weight_decay: 0.01
+    warmup_step: 100
+    max_iters: 80000
+
+data:
+  class_path: rlt2t.datasets.bert_text_rm_datamodule.BertTextRMDataModule
+  init_args:
+    data_dir: "data/rm2"
+    batch_size: 56
+    max_token_len: 256
+    start_idx: 106
+    num_words: 1800
+    eos_id: 105
+    num_workers: 4

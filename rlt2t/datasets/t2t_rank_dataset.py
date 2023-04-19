@@ -9,41 +9,41 @@ from torch.utils.data import Dataset
 from rlt2t.textmap.textmap_processor import TextMapProcessor
 
 
-# @retry(tries=3)
-# def get_rank_example(text: str, port: int):
-#     return requests.post(f'http://127.0.0.1:{port}/get_rank_data',
-#                          json={'text': text}).json()
-
-
-ensemble_data = json.load(open('/root/project/rlt2t/data/ensemble_data.json'))
-
-
+@retry(tries=3)
 def get_rank_example(text: str, port: int):
-    example = ensemble_data[text]
-    idx1, idx2 = random.sample(range(0, len(example['candidate_outputs'])),
-                               2)
-    if example['candidate_outputs_scores'][idx1] < example['candidate_outputs_scores'][idx2]:
-        idx1, idx2 = idx2, idx1
-    output_example = {
-        'text': text,
-        'summary': example['summary'],
-        'rank_a': example['candidate_outputs'][idx1],
-        'rank_b': example['candidate_outputs'][idx2],
-        'rank_a_score': example['candidate_outputs_scores'][idx1],
-        'rank_b_score': example['candidate_outputs_scores'][idx2],
-        'use_rank': 1.0
-    }
+    return requests.post(f'http://127.0.0.1:{port}/get_rank_data',
+                         json={'text': text}).json()
 
-    tokens_a = output_example['rank_a'].split()
-    tokens_b = output_example['rank_b'].split()
-    min_len = min(len(tokens_a), len(tokens_b))
-    output_example['rank_a'] = " ".join(tokens_a[0:min_len])
-    output_example['rank_b'] = " ".join(tokens_b[0:min_len])
 
-    if output_example['rank_a'] == output_example['rank_b'] or \
-        output_example['rank_a_score'] == output_example['rank_b_score']:
-        output_example['use_rank'] = 0.0
-    return output_example
+# ensemble_data = json.load(open('/root/project/rlt2t/data/ensemble_data.json'))
+
+
+# def get_rank_example(text: str, port: int):
+#     example = ensemble_data[text]
+#     idx1, idx2 = random.sample(range(0, len(example['candidate_outputs'])),
+#                                2)
+#     if example['candidate_outputs_scores'][idx1] < example['candidate_outputs_scores'][idx2]:
+#         idx1, idx2 = idx2, idx1
+#     output_example = {
+#         'text': text,
+#         'summary': example['summary'],
+#         'rank_a': example['candidate_outputs'][idx1],
+#         'rank_b': example['candidate_outputs'][idx2],
+#         'rank_a_score': example['candidate_outputs_scores'][idx1],
+#         'rank_b_score': example['candidate_outputs_scores'][idx2],
+#         'use_rank': 1.0
+#     }
+#
+#     # tokens_a = output_example['rank_a'].split()
+#     # tokens_b = output_example['rank_b'].split()
+#     # min_len = min(len(tokens_a), len(tokens_b))
+#     # output_example['rank_a'] = " ".join(tokens_a[0:min_len])
+#     # output_example['rank_b'] = " ".join(tokens_b[0:min_len])
+#
+#     if output_example['rank_a'] == output_example['rank_b'] or \
+#         output_example['rank_a_score'] == output_example['rank_b_score']:
+#         output_example['use_rank'] = 0.0
+#     return output_example
 
 
 def augment_text_fn(my_str):
@@ -115,14 +115,14 @@ class T2TRankDataset(Dataset):
 
         rank_a_labels = self.mapper.encode_t5([example['rank_a']],
                                               max_length=self.max_target_length,
-                                              add_special_tokens=False, pad=True)
+                                              add_special_tokens=True, pad=True)
 
         rank_a_labels['input_ids'] = [
                 [(l if l != 0 else -100) for l in label] for label in rank_a_labels["input_ids"]
         ]
         rank_b_labels = self.mapper.encode_t5([example['rank_b']],
                                               max_length=self.max_target_length,
-                                              add_special_tokens=False, pad=True)
+                                              add_special_tokens=True, pad=True)
         rank_b_labels['input_ids'] = [
                 [(l if l != 0 else -100) for l in label] for label in rank_b_labels["input_ids"]
         ]

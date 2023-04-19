@@ -19,7 +19,8 @@ class T2TRankModel(LightningModule):
                  warmup_step: int=1000,
                  max_iters: int=10000,
                  rank_start_iters: int = 500,
-                 rank_loss_rate: float = 1.0):
+                 rank_loss_rate: float = 1.0,
+                 delay_alpha: float = 0.9):
         super().__init__()
         self.save_hyperparameters()
         self.model = AutoModelForSeq2SeqLM.from_pretrained(init_model, return_dict=True)
@@ -31,6 +32,7 @@ class T2TRankModel(LightningModule):
         self.eos_id = eos_id
         self.rank_start_iters = rank_start_iters
         self.rank_loss_rate = rank_loss_rate
+        self.delay_alpha = delay_alpha
 
     def get_score(self, logits, labels):
         # [batch_size, ]
@@ -39,6 +41,46 @@ class T2TRankModel(LightningModule):
                                                     labels.view(-1)).reshape((bs, seq_len))
         score = score.sum(axis=-1) / torch.sum(labels != -100, axis=-1)
         return score
+
+    def build_mask_rate(self, rank_a_labels, rank_b_labels,
+                        dtype,
+                        alpha=0.9):
+        batch_size, seq_len = rank_a_labels.shape
+        mask_rate = torch.zeros_like(rank_a_labels, dtype=dtype)
+        for i in range(batch_size):
+            items = (rank_a_labels[i] != rank_b_labels[i]).nonzero()
+            start_idx = items[0].item() if len(items) > 0 else seq_len
+            mask_rate[i, start_idx:] = alpha ** torch.arange(seq_len - start_idx, device=rank_a_labels.device)
+        return mask_rate
+
+    def get_rank_outputs(self, orig_input_ids=None,
+                         orig_attention_mask=None,
+                         rank_a_labels=None,
+                         rank_b_labels=None,
+                         use_rank=None):
+        output_rank_a = self.model(orig_input_ids,
+                                   attention_mask=orig_attention_mask,
+                                   labels=rank_a_labels)
+        output_rank_b = self.model(orig_input_ids,
+                                   attention_mask=orig_attention_mask,
+                                   labels=rank_b_labels)
+        rank_a_labels_pad = rank_a_labels.masked_fill(rank_a_labels == -100, 0)
+        rank_b_labels_pad = rank_b_labels.masked_fill(rank_b_labels == -100, 0)
+        # (batch_size, seq_len)
+        rank_a_logits = torch.gather(output_rank_a.logits, 2, rank_a_labels_pad.unsqueeze(2)).squeeze(-1)
+        rank_b_logits = torch.gather(output_rank_b.logits, 2, rank_b_labels_pad.unsqueeze(2)).squeeze(-1)
+        diff_logits = rank_a_logits - rank_b_logits
+        rank_loss = -torch.log(torch.sigmoid(diff_logits))
+        mask_rate = self.build_mask_rate(rank_a_labels, rank_b_labels, rank_a_logits.dtype, alpha=self.delay_alpha)
+        rank_loss = rank_loss * mask_rate
+
+        # build select mask
+        select_mask = (rank_a_labels != -100) & (rank_b_labels != -100) & (mask_rate > 1e-8)
+        select_mask = select_mask & (use_rank.unsqueeze(-1).to(select_mask.dtype))
+
+        rank_loss = torch.masked_select(rank_loss, select_mask).sum() / (torch.masked_select(mask_rate, select_mask).sum() + 1e-8)
+        rank_acc = torch.sum(diff_logits > 0) / diff_logits.shape[0]
+        return rank_loss, rank_acc
 
     def forward(self,
                 input_ids=None,
@@ -55,20 +97,11 @@ class T2TRankModel(LightningModule):
         ft_loss, rank_loss = output.loss, 0.0
         rank_acc = 0.0
         if self.training and self.trainer.global_step >= self.rank_start_iters:
-            output_rank_a = self.model(orig_input_ids,
-                                       attention_mask=orig_attention_mask,
-                                       labels=rank_a_labels)
-            output_rank_b = self.model(orig_input_ids,
-                                       attention_mask=orig_attention_mask,
-                                       labels=rank_b_labels)
-            rank_a_score = self.get_score(output_rank_a.logits,
-                                          rank_a_labels)
-            rank_b_score = self.get_score(output_rank_b.logits,
-                                          rank_b_labels)
-            rank_loss = torch.maximum(torch.zeros_like(rank_a_score),
-                                      rank_b_score - rank_a_score)
-            rank_loss = torch.mean(rank_loss * use_rank)
-            rank_acc = torch.mean(rank_a_score >= rank_b_score, dtype=rank_loss.dtype)
+            rank_loss, rank_acc = self.get_rank_outputs(orig_input_ids=orig_input_ids,
+                                  orig_attention_mask=orig_attention_mask,
+                                  rank_a_labels=rank_a_labels,
+                                  rank_b_labels=rank_b_labels,
+                                  use_rank=use_rank)
 
         return ft_loss, rank_loss, rank_acc, output.logits
 

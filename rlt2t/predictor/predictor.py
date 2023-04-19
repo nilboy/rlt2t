@@ -9,27 +9,25 @@ class Predictor(object):
     def __init__(self,
                  t2t_model_paths: List[str],
                  rm_model_paths: List[str],
+                 t2t_score_model_paths: List[str]=None,
                  num_words: int = 1800,
                  max_src_len: int = 256,
                  max_tgt_len: int = 96,
                  batch_size: int = 32,
                  beam_size: int = 4,
                  num_hypotheses: int = 1,
-                 use_beam_search: bool = True,
-                 sample_size: int = 4,
-                 use_sample: bool = False,
+                 sample_size: int = 1,
                  use_fp16: bool = True):
         self.t2t_model_paths = t2t_model_paths
         self.rm_model_paths = rm_model_paths
+        self.t2t_score_model_paths = t2t_score_model_paths if t2t_score_model_paths else self.t2t_model_paths
         self.num_words = num_words
         self.max_src_len = max_src_len
         self.max_tgt_len = max_tgt_len
         self.batch_size = batch_size
         self.beam_size = beam_size
         self.num_hypotheses = num_hypotheses
-        self.use_beam_search = use_beam_search
         self.sample_size = sample_size
-        self.use_sample = use_sample
         self.use_fp16 = use_fp16
 
     def calculate_scores(self, records):
@@ -46,10 +44,30 @@ class Predictor(object):
             for i in range(len(scores)):
                 output_records[i]['score'] += scores[i]
         for item in output_records:
-            item['score'] /= len(self.rm_model_paths)
+            item['score'] /= max(len(self.rm_model_paths), 1.0)
         return output_records
 
-    def _predict_texts(self, texts, model_path, is_sample):
+    def calculate_scores_with_gen_model(self, records):
+        output_records = []
+        for item in records:
+            output_records.append({
+                'input': item['input'],
+                'output': item['output'],
+                'score': 0.0
+            })
+        for model_path in self.t2t_score_model_paths:
+            engine = T2TEngineCT2(model_path,
+                                  compute_type="int8",
+                                  num_words=self.num_words)
+            scores = engine.get_scores(records, batch_size=self.batch_size)
+            for i in range(len(scores)):
+                output_records[i]['score'] += scores[i]
+        for item in output_records:
+            item['score'] /= max(len(self.t2t_model_paths), 1.0)
+        return output_records
+
+    def _predict_texts(self, texts, model_path, is_sample,
+                       use_reward_model=True):
         engine = T2TEngineCT2(model_path,
                               compute_type="int8",
                               num_words=self.num_words)
@@ -75,13 +93,19 @@ class Predictor(object):
                 {'input': texts[i], 'output': output_texts[i][j]}
                 for i in range(len(texts))
             ]
-            output_records = self.calculate_scores(output_records)
+            if use_reward_model:
+                output_records = self.calculate_scores(output_records)
+            else:
+                output_records = self.calculate_scores_with_gen_model(output_records)
             output_records_list.append(output_records)
         return output_records_list
 
     def predict(self,
                 texts: List[str],
-                return_best: bool = True):
+                return_best: bool = True,
+                use_reward_model: bool = True,
+                use_beam_search: bool = True,
+                use_sample: bool = False):
         """
         Return:
             if return_best:
@@ -95,15 +119,16 @@ class Predictor(object):
                 output_records_list: List[List[Dict]]
         """
         output_records_list = []
-        if self.use_beam_search:
+        if use_beam_search:
             for model_path in tqdm(self.t2t_model_paths, desc='beam_search_predict...'):
                 items = self._predict_texts(texts,
-                                            model_path, is_sample=False)
+                                            model_path, is_sample=False,
+                                            use_reward_model=use_reward_model)
                 output_records_list.extend(items)
-        if self.use_sample:
+        if use_sample:
             for model_path in tqdm(self.t2t_model_paths, desc='sample predict...'):
                 items = self._predict_texts(texts,
-                                            model_path, is_sample=True)
+                                            model_path, is_sample=True, use_reward_model=use_reward_model)
                 output_records_list.extend(items)
         if not return_best:
             return output_records_list

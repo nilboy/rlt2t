@@ -6,6 +6,7 @@ from rlt2t.textmap.textmap_processor import TextMapProcessor
 from typing import List
 from tqdm.auto import tqdm
 import torch
+import numpy as np
 
 
 class T2TEngineCT2(object):
@@ -84,7 +85,7 @@ class T2TEngineCT2(object):
         scores = self.ct2_model.score_batch(source_list,
                                             target_list,
                                             max_batch_size=batch_size)
-        scores = [sum(item.log_probs) for item in scores]
+        scores = [np.mean(item.log_probs) for item in scores]
         return scores
 
 

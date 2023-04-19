@@ -11,12 +11,13 @@ from readerwriterlock import rwlock
 from rlt2t.engines.t2t_engine import T2TEngineCT2
 from rlt2t.utils.evaluate import calculate_scores
 import random
+from simple_file_checksum import get_checksum
 
 
 def get_last_model_path(base_model_dir):
     max_model_number, max_model_name = -1, ''
     if not os.path.exists(base_model_dir):
-        return max_model_name
+        return max_model_name, ""
     for filename in os.listdir(base_model_dir):
         matched = re.match(r'epoch_(\d+)\.ckpt.dir', filename)
         if matched:
@@ -24,12 +25,15 @@ def get_last_model_path(base_model_dir):
             if model_steps > max_model_number:
                 max_model_number = model_steps
                 max_model_name = filename
-    return max_model_name
+    if os.path.exists(os.path.join(base_model_dir, 'last.ckpt.dir')):
+        max_model_name = 'last.ckpt.dir'
+    filesum = get_checksum(os.path.join(base_model_dir, max_model_name, 'pytorch_model.bin'))
+    return max_model_name, filesum
 
 
 class Model(object):
     def __init__(self, base_model_dir,
-                 file_path: str = "data/t2t/train.json",
+                 file_path: str = "data/t2t/data.json",
                  interval_seconds: int = 10):
         self.file_path = file_path
         self.base_model_dir = base_model_dir
@@ -38,6 +42,7 @@ class Model(object):
         self.data = {}
         self.records = []
         self.max_model_name = ""
+        self.filesum = ""
         # 定时调用线程
         self._rwlock = rwlock.RWLockFairD()
         self.init_data_from_file()
@@ -78,10 +83,11 @@ class Model(object):
 
     def _update(self) -> None:
         beam_size = 6
-        cur_max_model_name = get_last_model_path(self.base_model_dir)
-        if cur_max_model_name == self.max_model_name or cur_max_model_name == "":
+        cur_max_model_name, cur_filesum = get_last_model_path(self.base_model_dir)
+        if cur_filesum == self.filesum or cur_max_model_name == "":
             return
         self.max_model_name = cur_max_model_name
+        self.filesum = cur_filesum
         cur_model_path = os.path.join(self.base_model_dir, self.max_model_name)
         ct2_cmd = f'ct2-transformers-converter --model={cur_model_path} --output_dir={self.ct2_model_dir} --force'
         logger.info(ct2_cmd)
@@ -142,7 +148,8 @@ class Model(object):
                 'rank_b': rank_b,
                 'rank_a_score': rank_a_score,
                 'rank_b_score': rank_b_score,
-                'use_rank': use_rank
+                'use_rank': use_rank,
+                'filename': self.max_model_name
             }
         logger.info('begin update data...')
         with self._rwlock.gen_wlock():

@@ -1,5 +1,5 @@
 params=(
-      --model_name_or_path /root/autodl-tmp/models/roberta-large \
+      --model_name_or_path /root/autodl-tmp/models/roberta-base \
       --do_train \
       --do_eval \
       --evaluation_strategy steps \
@@ -11,12 +11,12 @@ params=(
       --line_by_line true \
       --text_map_start_idx 106 \
       --text_map_num_words 1800 \
-      --per_device_train_batch_size 64 \
+      --per_device_train_batch_size 256 \
       --gradient_accumulation_steps 1 \
-      --per_device_eval_batch_size 16 \
+      --per_device_eval_batch_size 32 \
       --learning_rate 2e-5 \
       --weight_decay 0.0 \
-      --max_steps 100000 \
+      --max_steps 50000 \
       --warmup_steps 2000 \
       --lr_scheduler_type linear \
       --logging_steps 20 \

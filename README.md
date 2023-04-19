@@ -81,3 +81,9 @@ python generate_weak_data.py
 python tools/rank_data_app.py /root/autodl-tmp/output-models/t2t-base/4 9678
 python tools/ensemble_rank_data_app.py /root/autodl-tmp/ct2 9678
 ```
+
+---
+* 构造score数据集
+```
+python tools/construct_score_data.py
+```
