@@ -69,7 +69,7 @@ class T2TEngineCT2(object):
                 preds.append(preds_item)
         return preds
 
-    def get_scores(self, records, batch_size: int = 64):
+    def get_scores(self, records, batch_size: int = 64, return_tokens_level: bool = False):
         """
         records: [
             {'input': str, 'output': str}
@@ -85,7 +85,10 @@ class T2TEngineCT2(object):
         scores = self.ct2_model.score_batch(source_list,
                                             target_list,
                                             max_batch_size=batch_size)
-        scores = [np.mean(item.log_probs) for item in scores]
+        if return_tokens_level:
+            scores = [item.log_probs for item in scores]
+        else:
+            scores = [np.mean(item.log_probs) for item in scores]
         return scores
 
 

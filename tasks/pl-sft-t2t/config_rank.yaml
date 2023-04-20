@@ -2,13 +2,13 @@ seed_everything: 42
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/t2t-rank-base/${oc.env:KFOLD}
+  default_root_dir: /root/autodl-tmp/output-models/t2t-rank-large-base/${oc.env:KFOLD}
   accelerator: gpu
   devices: 1
   strategy: ddp
-  accumulate_grad_batches: 1
+  accumulate_grad_batches: 2
   precision: 16
-  check_val_every_n_epoch: 2
+  check_val_every_n_epoch: 1
   max_steps: 40000
   gradient_clip_val: 0.5
   callbacks:
@@ -19,7 +19,7 @@ trainer:
 #        annealing_epochs: 15
     - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
       init_args:
-        save_top_k: 2 # save k best models (determined by above metric)
+        save_top_k: 1 # save k best models (determined by above metric)
         monitor: 'val/m_score'
         mode: 'max'
         save_last: True # additionaly always save model from last epoch
@@ -27,7 +27,7 @@ trainer:
         dirpath: ${trainer.default_root_dir}
         filename: "epoch_{epoch}"
         auto_insert_metric_name: False
-        every_n_epochs: 2
+        every_n_epochs: 1
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: step
@@ -35,20 +35,20 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: "/root/autodl-tmp/pretrain-t2t"
-    lr: 2e-5
+    init_model: "/root/autodl-tmp/output-models/pretrain-t2t-large"
+    lr: 1e-5
     weight_decay: 0.01
-    warmup_step: 10
+    warmup_step: 500
     max_iters: 40000
-    rank_start_iters: 40000
-    rank_loss_rate: 0.0
+    rank_start_iters: 200000
+    rank_loss_rate: 0.05
     delay_alpha: 0.95
 
 data:
   class_path: rlt2t.datasets.t2t_rank_datamodule.T2TRankDataModule
   init_args:
     data_dir: data/t2t/${oc.env:KFOLD}
-    batch_size: 32
+    batch_size: 12
     max_source_length: 256
     max_target_length: 96
     start_idx: 106
