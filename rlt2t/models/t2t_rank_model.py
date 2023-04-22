@@ -2,12 +2,32 @@ from typing import Any, List
 
 import torch
 from torchmetrics import BLEUScore
-from transformers import AutoModelForSeq2SeqLM, BertTokenizer
+from transformers import AutoModelForSeq2SeqLM, BertTokenizer, AutoConfig
 from pytorch_lightning import LightningModule
 from transformers.optimization import get_polynomial_decay_schedule_with_warmup
 from torch.optim import AdamW
 from torch.nn import CrossEntropyLoss
 from rlt2t.utils.evaluate import calculate_scores
+from pytorch_lightning.callbacks.stochastic_weight_avg import StochasticWeightAveraging
+
+import torch.nn.functional as F
+
+
+def compute_kl_loss(p, q, pad_mask=None):
+    p_loss = F.kl_div(F.log_softmax(p, dim=-1), F.softmax(q, dim=-1), reduction='none')
+    q_loss = F.kl_div(F.log_softmax(q, dim=-1), F.softmax(p, dim=-1), reduction='none')
+
+    # pad_mask is for seq-level tasks
+    if pad_mask is not None:
+        p_loss.masked_fill_(~pad_mask[..., None], 0.)
+        q_loss.masked_fill_(~pad_mask[..., None], 0.)
+
+    # You can choose whether to use function "sum" and "mean" depending on your task
+    p_loss = p_loss.sum() / (pad_mask.sum() + 1e-8)
+    q_loss = q_loss.sum() / (pad_mask.sum() + 1e-8)
+
+    loss = (p_loss + q_loss) / 2
+    return loss
 
 
 class T2TRankModel(LightningModule):
@@ -18,12 +38,17 @@ class T2TRankModel(LightningModule):
                  weight_decay: float=0.0005,
                  warmup_step: int=1000,
                  max_iters: int=10000,
+                 dropout_rate: float = 0.1,
                  rank_start_iters: int = 500,
                  rank_loss_rate: float = 1.0,
-                 delay_alpha: float = 0.9):
+                 delay_alpha: float = 0.9,
+                 rdrop_alpha: float = 0.0):
         super().__init__()
         self.save_hyperparameters()
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(init_model, return_dict=True)
+        config = AutoConfig.from_pretrained(init_model)
+        config.dropout = dropout_rate
+        config.return_dict = True
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(init_model, config=config)
         self.tokenizer = BertTokenizer.from_pretrained(init_model)
         self.tokenizer.bos_token_id = 0
         self.tokenizer.eos_token_id = eos_id
@@ -33,6 +58,7 @@ class T2TRankModel(LightningModule):
         self.rank_start_iters = rank_start_iters
         self.rank_loss_rate = rank_loss_rate
         self.delay_alpha = delay_alpha
+        self.rdrop_alpha = rdrop_alpha
 
     def get_score(self, logits, labels):
         # [batch_size, ]
@@ -85,50 +111,68 @@ class T2TRankModel(LightningModule):
     def forward(self,
                 input_ids=None,
                 attention_mask=None,
-                labels=None,
-                rank_a_labels=None,
-                rank_b_labels=None,
-                orig_input_ids=None,
-                orig_attention_mask=None,
-                use_rank=None):
+                labels=None):
         output = self.model(input_ids,
                             attention_mask=attention_mask,
                             labels=labels)
-        ft_loss, rank_loss = output.loss, 0.0
-        rank_acc = 0.0
-        if self.training and self.trainer.global_step >= self.rank_start_iters:
-            rank_loss, rank_acc = self.get_rank_outputs(orig_input_ids=orig_input_ids,
-                                  orig_attention_mask=orig_attention_mask,
-                                  rank_a_labels=rank_a_labels,
-                                  rank_b_labels=rank_b_labels,
-                                  use_rank=use_rank)
-
-        return ft_loss, rank_loss, rank_acc, output.logits
+        return output
 
     def step(self, batch: Any):
-        ft_loss, rank_loss, rank_acc, logits = self.forward(batch['input_ids'],
-                                                  batch['attention_mask'],
-                                                  batch['labels'],
-                                                  batch['rank_a_labels'],
-                                                  batch['rank_b_labels'],
-                                                  batch['orig_input_ids'],
-                                                  batch['orig_attention_mask'],
-                                                  batch['use_rank'])
-        return ft_loss, rank_loss, rank_acc, logits, batch['labels']
+        output = self.forward(batch['input_ids'],
+                              batch['attention_mask'],
+                              batch['labels'])
+        return output
+
+    def get_predict_model(self):
+        swa_callback = None
+        for item in self.trainer.callbacks:
+            if isinstance(item, StochasticWeightAveraging):
+                swa_callback = item
+                break
+        if swa_callback is None or swa_callback._average_model.model.device != self.model.device:
+            return self.model
+        else:
+            return swa_callback._average_model.model
+
+    def get_loss(self, batch: Any):
+        loss = 0
+        if self.rdrop_alpha > 0.0:
+            output1 = self.forward(batch['input_ids'],
+                                   batch['attention_mask'],
+                                   labels=batch['labels'])
+            output2 = self.forward(batch['input_ids'],
+                                   batch['attention_mask'],
+                                   labels=batch['labels'])
+            ce_loss = 0.5 * (output1.loss + output2.loss)
+            self.log('train/ce_loss', ce_loss, on_step=True, on_epoch=True, prog_bar=False)
+            kl_loss = compute_kl_loss(output1.logits, output2.logits, batch['labels'] != -100)
+            self.log('train/kl_loss', kl_loss, on_step=True, on_epoch=True, prog_bar=False)
+            loss += ce_loss + self.rdrop_alpha * kl_loss
+        else:
+            output = self.forward(batch['input_ids'],
+                                  batch['attention_mask'],
+                                  labels=batch['labels'])
+            ce_loss = output.loss
+            self.log('train/ce_loss', ce_loss, on_step=True, on_epoch=True, prog_bar=False)
+            loss += ce_loss
+
+        if self.training and self.rank_loss_rate > 0.0 and self.trainer.global_step >= self.rank_start_iters:
+            rank_loss, rank_acc = self.get_rank_outputs(orig_input_ids=batch['orig_input_ids'],
+                                                        orig_attention_mask=batch['orig_attention_mask'],
+                                                        rank_a_labels=batch['rank_a_labels'],
+                                                        rank_b_labels=batch['rank_b_labels'],
+                                                        use_rank=batch['use_rank'])
+            self.log('train/rank_loss', rank_loss, on_step=True, on_epoch=True, prog_bar=False)
+            loss += rank_loss * self.rank_loss_rate
+        self.log('train/loss', loss, on_step=True, on_epoch=True, prog_bar=False)
+        return loss
+
 
     def training_step(self,
                       batch: Any,
                       batch_idx: int):
-        ft_loss, rank_loss, rank_acc, preds, targets = self.step(batch)
-        if self.rank_loss_rate > 0.0:
-            loss = ft_loss + rank_loss * self.rank_loss_rate
-        else:
-            loss = ft_loss
-        #loss = rank_loss * self.rank_loss_rate
-        self.log('train/ft_loss', ft_loss, on_step=True, on_epoch=True, prog_bar=False)
-        self.log('train/rank_loss', rank_loss, on_step=True, on_epoch=True, prog_bar=False)
-        self.log('train/rank_acc', rank_acc, on_step=True, on_epoch=True, prog_bar=False)
-        self.log('train/loss', loss, on_step=True, on_epoch=True, prog_bar=False)
+        loss = self.get_loss(batch)
+        self.log('monitoring_step', self.global_step)
         return {
             'loss': loss
         }
@@ -138,13 +182,15 @@ class T2TRankModel(LightningModule):
         pass
 
     def validation_step(self, batch: Any, batch_idx: int):
-        ft_loss, rank_loss, rank_acc, preds, targets = self.step(batch)
-        loss = ft_loss + rank_loss * self.rank_loss_rate
+        output = self.forward(batch['input_ids'],
+                              batch['attention_mask'],
+                              labels=batch['labels'])
+        loss = output.loss
         with torch.no_grad():
-            outputs = self.model.generate(input_ids=batch['input_ids'],
-                                          attention_mask=batch['attention_mask'],
-                                          num_beams=2,
-                                          max_length=96)
+            outputs = self.get_predict_model().generate(input_ids=batch['input_ids'],
+                                                        attention_mask=batch['attention_mask'],
+                                                        num_beams=2,
+                                                        max_length=96)
         outputs = outputs.detach().cpu().tolist()
         output_texts = []
         for i in range(len(outputs)):
@@ -170,10 +216,6 @@ class T2TRankModel(LightningModule):
 
         bleu4 = self.val_bleu(output_texts,
                       [[item] for item in label_texts])
-
-        self.log('val/ft_loss', ft_loss, on_step=False, on_epoch=True, prog_bar=False)
-        self.log('val/rank_loss', rank_loss, on_step=False, on_epoch=True, prog_bar=False)
-        self.log('val/rank_acc', rank_acc, on_step=False, on_epoch=True, prog_bar=False)
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         self.log("val/bleu4", bleu4, on_step=False, on_epoch=True, prog_bar=True)
         return {"loss": loss, "e_label_texts": label_texts, "e_output_texts": output_texts}
@@ -187,8 +229,10 @@ class T2TRankModel(LightningModule):
         self.log("val/m_score", m_score.mean(), on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: Any, batch_idx: int):
-        ft_loss, rank_loss, rank_acc, preds, targets = self.step(batch)
-        loss = ft_loss + rank_loss * self.rank_loss_rate
+        output = self.forward(batch['input_ids'],
+                              batch['attention_mask'],
+                              labels=batch['labels'])
+        loss = output.loss
         with torch.no_grad():
             outputs = self.model.generate(input_ids=batch['input_ids'],
                                           attention_mask=batch['attention_mask'],

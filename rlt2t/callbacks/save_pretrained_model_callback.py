@@ -3,15 +3,26 @@ import os
 from fsspec.core import url_to_fs
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.callbacks.stochastic_weight_avg import StochasticWeightAveraging
 
 
 class SavePretrainedModelCallback(ModelCheckpoint):
     def _save_checkpoint(self, trainer: "pl.Trainer", filepath: str) -> None:
         super()._save_checkpoint(trainer, filepath)
+        swa_callback = None
+        for item in trainer.callbacks:
+            if isinstance(item, StochasticWeightAveraging):
+                swa_callback = item
+                break
         hf_save_dir = filepath + ".dir"
         if trainer.is_global_zero:
-            trainer.lightning_module.model.save_pretrained(hf_save_dir)
-            trainer.lightning_module.tokenizer.save_pretrained(hf_save_dir)
+            if swa_callback is None:
+                trainer.lightning_module.model.save_pretrained(hf_save_dir)
+                trainer.lightning_module.tokenizer.save_pretrained(hf_save_dir)
+            else:
+                swa_callback._average_model.model.save_pretrained(hf_save_dir)
+                trainer.lightning_module.tokenizer.save_pretrained(hf_save_dir)
+
 
     def _update_best_and_save(
         self, current: torch.Tensor, trainer: "pl.Trainer", monitor_candidates

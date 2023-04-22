@@ -122,8 +122,8 @@ class Model(object):
             idx1, idx2 = random.sample(range(0, len(item)), 2)
             output_texts_1.append(item[idx1])
             output_texts_2.append(item[idx2])
-        output_texts_1_scores = calculate_scores(summaries, output_texts_1)
-        output_texts_2_scores = calculate_scores(summaries, output_texts_2)
+        output_texts_1_scores = calculate_scores(summaries, output_texts_1, bleu4_rate=1.0)
+        output_texts_2_scores = calculate_scores(summaries, output_texts_2, bleu4_rate=1.0)
         gen_data = {}
         for i in range(len(self.records)):
             text = self.records[i]['text']
