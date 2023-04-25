@@ -2,13 +2,14 @@ seed_everything: 42
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/pretrain-t2t-large
+  default_root_dir: /root/autodl-tmp/output-models/pretrain-flan-t5-large
   accelerator: gpu
   devices: 2
   strategy: ddp
-  accumulate_grad_batches: 1
-  precision: 16
-  check_val_every_n_epoch: 10
+  #strategy: fsdp
+  accumulate_grad_batches: 2
+  precision: bf16
+  check_val_every_n_epoch: 8
   max_steps: 80000
   gradient_clip_val: 0.5
   callbacks:
@@ -22,7 +23,7 @@ trainer:
         dirpath: ${trainer.default_root_dir}
         filename: "epoch_{epoch}"
         auto_insert_metric_name: False
-        every_n_epochs: 10
+        every_n_epochs: 8
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: step
@@ -30,7 +31,7 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_model.T2TModel
   init_args:
-    init_model: "/root/autodl-tmp/models/bart-large"
+    init_model: "/root/autodl-tmp/pmodels/flan-t5-large"
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 1000
@@ -40,7 +41,7 @@ data:
   class_path: rlt2t.datasets.t2t_pretrain_datamodule.T2TPretrainDataModule
   init_args:
     data_dir: data/pt2t
-    batch_size: 24
+    batch_size: 16
     max_source_length: 256
     max_target_length: 96
     start_idx: 106

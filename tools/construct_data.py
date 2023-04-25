@@ -132,7 +132,11 @@ def construct_t2t_data(output_data_dir, num_kfold):
     ]
     pd.DataFrame(all_train_records).to_json(os.path.join(output_data_dir, 't2t/train.json'), orient='records', lines=True)
     pd.DataFrame(all_test_records).to_json(os.path.join(output_data_dir, 't2t/test.json'), orient='records',
-                                            lines=True)
+                                           lines=True)
+    os.makedirs(os.path.join(output_data_dir, f't2t/all'), exist_ok=True)
+    pd.DataFrame(all_train_records).to_json(os.path.join(output_data_dir, 't2t/all/train.json'), orient='records', lines=True)
+    pd.DataFrame(all_test_records).to_json(os.path.join(output_data_dir, 't2t/all/test.json'), orient='records',
+                                           lines=True)
 
     for kfold in range(0, num_kfold):
         os.makedirs(os.path.join(output_data_dir, f't2t/{kfold}'), exist_ok=True)
@@ -150,7 +154,7 @@ def construct_t2t_data(output_data_dir, num_kfold):
                 })
         pd.DataFrame(cur_train_records).to_json(os.path.join(output_data_dir, f't2t/{kfold}/train.json'), orient='records', lines=True)
         pd.DataFrame(cur_test_records).to_json(os.path.join(output_data_dir, f't2t/{kfold}/test.json'), orient='records',
-                                                lines=True)
+                                               lines=True)
 
 
 def construct_data(input_data_dir="raw_data",

@@ -16,6 +16,7 @@ class T2TRankDataModule(LightningDataModule):
                  num_words: int = 1800,
                  eos_id: int = 105,
                  augment_text: bool = False,
+                 use_rank: bool = False,
                  port: int = 9898,
                  num_workers: int = 0,
                  pin_memory: bool = False):
@@ -30,6 +31,7 @@ class T2TRankDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.pin_memory = pin_memory
         self.augment_text = augment_text
+        self.use_rank = use_rank
         self.port = port
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
@@ -52,6 +54,7 @@ class T2TRankDataModule(LightningDataModule):
                                              num_words=self.num_words,
                                              eos_id=self.eos_id,
                                              augment_text=self.augment_text,
+                                             use_rank=self.use_rank,
                                              port=self.port)
             self.data_val = T2TRankDataset(os.path.join(self.data_dir, 'test.json'),
                                            max_source_length=self.max_source_length,
@@ -60,6 +63,7 @@ class T2TRankDataModule(LightningDataModule):
                                            num_words=self.num_words,
                                            eos_id=self.eos_id,
                                            augment_text=False,
+                                           use_rank=self.use_rank,
                                            port=self.port)
             self.data_test = T2TRankDataset(os.path.join(self.data_dir, 'test.json'),
                                             max_source_length=self.max_source_length,
@@ -68,6 +72,7 @@ class T2TRankDataModule(LightningDataModule):
                                             num_words=self.num_words,
                                             eos_id=self.eos_id,
                                             augment_text=False,
+                                            use_rank=self.use_rank,
                                             port=self.port)
 
     def train_dataloader(self):

@@ -77,7 +77,8 @@ class T2TRankDataset(Dataset):
                  num_words: int = 1800,
                  eos_id: int = 105,
                  port: int = 9898,
-                 augment_text: bool = False):
+                 augment_text: bool = False,
+                 use_rank: bool = False):
         self.data = []
         with open(file_path) as fin:
             for line in fin:
@@ -86,6 +87,7 @@ class T2TRankDataset(Dataset):
         self.max_target_length = max_target_length
         self.mapper = TextMapProcessor(start_idx, num_words, eos_id)
         self.augment_text = augment_text
+        self.use_rank = use_rank
         self.port = port
 
     def __len__(self):
@@ -93,7 +95,18 @@ class T2TRankDataset(Dataset):
 
     def __getitem__(self, index: int):
         text, summary = self.data[index]['text'], self.data[index]['summary']
-        example = get_rank_example(text, self.port)
+        if self.use_rank:
+            example = get_rank_example(text, self.port)
+        else:
+            example = {
+                'text': text,
+                'summary': summary,
+                'rank_a': summary,
+                'rank_b': summary,
+                'rank_a_score': 0.0,
+                'rank_b_score': 0.0,
+                'use_rank': 0.0
+            }
 
         if self.augment_text:
             text = augment_text_fn(text)

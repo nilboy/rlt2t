@@ -24,6 +24,7 @@ class ModelConverter(object):
                 tmp_file.write(word + '\n')
         self.tokenizer = BertTokenizer(tmp_file.name)
         self.tokenizer.bos_token_id = 0
+        self.tokenizer.eos_token_id = 105
         os.remove(tmp_file.name)
 
     def convert_bert_model(self,
@@ -44,6 +45,7 @@ class ModelConverter(object):
         model.cls.predictions.decoder.weight.data = new_cls_weight
         model.cls.predictions.bias = nn.Parameter(new_cls_bias)
         model.config.vocab_size = vocab_size
+
         model.half()
         model.save_pretrained(output_model_name)
         self.tokenizer.save_pretrained(output_model_name)
@@ -65,7 +67,8 @@ class ModelConverter(object):
         model.lm_head.weight.data = new_lm_weight
         model.config.vocab_size = vocab_size
         model.config.decoder_start_token_id = 0
-        model.half()
+        model.config.eos_token_id = 105
+        model.to(torch.bfloat16)
         model.save_pretrained(output_model_name)
         self.tokenizer.save_pretrained(output_model_name)
         generate_config_file = os.path.join(output_model_name, 'generation_config.json')
@@ -91,6 +94,7 @@ class ModelConverter(object):
 
         model.config.vocab_size = vocab_size
         model.config.decoder_start_token_id = 0
+        model.config.eos_token_id = 105
         model.half()
         model.save_pretrained(output_model_name)
         self.tokenizer.save_pretrained(output_model_name)
