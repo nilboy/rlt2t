@@ -2,20 +2,19 @@ seed_everything: 42
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/pretrain-flan-t5-large
+  default_root_dir: /root/autodl-tmp/output-models/pt2t-large-train_2_train_test
   accelerator: gpu
-  devices: 2
+  devices: 4
   strategy: ddp
-  #strategy: fsdp
-  accumulate_grad_batches: 2
-  precision: bf16
-  check_val_every_n_epoch: 8
-  max_steps: 80000
+  accumulate_grad_batches: 1
+  precision: 16
+  check_val_every_n_epoch: 10
+  max_steps: 100000
   gradient_clip_val: 0.5
   callbacks:
     - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
       init_args:
-        save_top_k: 1 # save k best models (determined by above metric)
+        save_top_k: 20 # save k best models (determined by above metric)
         monitor: 'val/bleu4'
         mode: 'max'
         save_last: True # additionaly always save model from last epoch
@@ -23,7 +22,7 @@ trainer:
         dirpath: ${trainer.default_root_dir}
         filename: "epoch_{epoch}"
         auto_insert_metric_name: False
-        every_n_epochs: 8
+        every_n_epochs: 10
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: step
@@ -31,17 +30,17 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_model.T2TModel
   init_args:
-    init_model: "/root/autodl-tmp/pmodels/flan-t5-large"
+    init_model: "/root/autodl-tmp/pmodels/uer/bart-large"
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 1000
-    max_iters: 80000
+    max_iters: 100000
 
 data:
   class_path: rlt2t.datasets.t2t_pretrain_datamodule.T2TPretrainDataModule
   init_args:
-    data_dir: data/pt2t
-    batch_size: 16
+    data_dir: data/pt2t/train_2_train_test
+    batch_size: 64
     max_source_length: 256
     max_target_length: 96
     start_idx: 106

@@ -1,17 +1,17 @@
 seed_everything: 42
 
 trainer:
-  #resume_from_checkpoint: /root/autodl-tmp/output-models/rd-t2t-large-6.0-0.3/all/last.ckpt
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/flan-nop/${oc.env:KFOLD}
+  default_root_dir: /root/autodl-tmp/output-models/sft-train_2_train_test-ft-train_train
   accelerator: gpu
   devices: 1
   strategy: ddp
-  accumulate_grad_batches: 3
-  precision: bf16
+  accumulate_grad_batches: 1
+  precision: 16
   check_val_every_n_epoch: 2
   max_steps: 30000
-  gradient_clip_val: 0.5
+  # bart gradient_clip_val: 0.5, T5: None
+  #gradient_clip_val: 0.5
   callbacks:
 #    - class_path: pytorch_lightning.callbacks.StochasticWeightAveraging
 #      init_args:
@@ -36,7 +36,8 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: "/root/autodl-tmp/output-models/pretrain-flan-t5-large/epoch_23"
+    init_model: "/root/autodl-tmp/output-models/pt2t-base-train_2_train_test/epoch_19.ckpt.dir"
+    # bart 2e-5; t5 1e-3
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 500
@@ -44,15 +45,15 @@ model:
     rank_start_iters: 1500
     rank_loss_rate: 0.0
     delay_alpha: 0.95
-    rdrop_alpha: 0.0
+    rdrop_alpha: 0.5
     dropout_rate: 0.1
 
 data:
   class_path: rlt2t.datasets.t2t_rank_datamodule.T2TRankDataModule
   init_args:
-    data_dir: data/t2t/${oc.env:KFOLD}
+    data_dir: data/t2t/train_2_train
     # 16
-    batch_size: 12
+    batch_size: 128
     max_source_length: 256
     max_target_length: 96
     start_idx: 106
