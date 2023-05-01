@@ -1,17 +1,17 @@
-seed_everything: 42
+seed_everything: 420
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/sft-train_2_train_test-ft-train_train
+  default_root_dir: /root/autodl-tmp/output-models/uer/large-199-dp0.1-rank
   accelerator: gpu
-  devices: 1
+  devices: 3
   strategy: ddp
-  accumulate_grad_batches: 1
+  accumulate_grad_batches: 2
   precision: 16
   check_val_every_n_epoch: 2
-  max_steps: 30000
+  max_steps: 80000
   # bart gradient_clip_val: 0.5, T5: None
-  #gradient_clip_val: 0.5
+  gradient_clip_val: 0.5
   callbacks:
 #    - class_path: pytorch_lightning.callbacks.StochasticWeightAveraging
 #      init_args:
@@ -20,13 +20,13 @@ trainer:
 #        annealing_epochs: 10
     - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
       init_args:
-        save_top_k: 2 # save k best models (determined by above metric)
+        save_top_k: 4 # save k best models (determined by above metric)
         monitor: 'val/m_score'
         mode: 'max'
         save_last: True # additionaly always save model from last epoch
         verbose: True
         dirpath: ${trainer.default_root_dir}
-        filename: "epoch_{epoch}_{step}"
+        filename: "epoch_{epoch}"
         auto_insert_metric_name: False
         every_n_epochs: 2
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
@@ -36,24 +36,25 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: "/root/autodl-tmp/output-models/pt2t-base-train_2_train_test/epoch_19.ckpt.dir"
+    init_model: "/root/autodl-tmp/output-models/uer/large-199-dp0.1-rank/epoch_1.ckpt.dir"
     # bart 2e-5; t5 1e-3
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 500
-    max_iters: 30000
-    rank_start_iters: 1500
-    rank_loss_rate: 0.0
+    max_iters: 80000
+    rank_start_iters: 0
+    rank_loss_rate: 0.1
     delay_alpha: 0.95
-    rdrop_alpha: 0.5
-    dropout_rate: 0.1
+    rdrop_alpha: 2.0
+    dropout_rate: 0.2
+    min_lr: 1e-5
 
 data:
   class_path: rlt2t.datasets.t2t_rank_datamodule.T2TRankDataModule
   init_args:
     data_dir: data/t2t/train_2_train
-    # 16
-    batch_size: 128
+    # 32
+    batch_size: 16
     max_source_length: 256
     max_target_length: 96
     start_idx: 106
@@ -62,4 +63,4 @@ data:
     num_workers: 1
     augment_text: True
     port: 9549
-    use_rank: False
+    use_rank: True

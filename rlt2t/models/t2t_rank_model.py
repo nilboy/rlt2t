@@ -42,7 +42,6 @@ def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_st
         return max(
             min_lr, float(num_training_steps - current_step) / float(max(1, num_training_steps - num_warmup_steps))
         )
-
     return LambdaLR(optimizer, lr_lambda, last_epoch)
 
 
@@ -260,7 +259,7 @@ class T2TRankModel(LightningModule):
         for item in outputs:
             preds.extend(item['e_output_texts'])
             labels.extend(item['e_label_texts'])
-        m_score = calculate_scores(labels, preds, bleu4_rate=0.0)
+        m_score = calculate_scores(labels, preds, bleu4_rate=1/3.0)
         self.log("val/m_score", m_score.mean(), on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: Any, batch_idx: int):
@@ -336,5 +335,5 @@ class T2TRankModel(LightningModule):
         scheduler = get_linear_schedule_with_warmup(optimizer=optimizer,
                                                     num_warmup_steps=self.hparams.warmup_step,
                                                     num_training_steps=self.hparams.max_iters,
-                                                    min_lr=self.hparams.min_lr)
+                                                    min_lr=self.hparams.min_lr/self.hparams.lr)
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
