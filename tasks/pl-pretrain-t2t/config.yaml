@@ -42,7 +42,7 @@ data:
   init_args:
     data_dir: data/pt2t/train_2_train_test
     # large 64; base 256; xlarge: 32
-    batch_size: 128
+    batch_size: 112
     max_source_length: 256
     max_target_length: 96
     start_idx: 106
