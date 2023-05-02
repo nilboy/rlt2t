@@ -3,7 +3,7 @@ from tqdm.auto import tqdm
 import numpy as np
 
 from rlt2t.engines.t2t_engine import T2TEngineCT2
-from rlt2t.engines.reg_engine import RegEngine
+#from rlt2t.engines.reg_engine import RegEngine
 
 def sort_with_index(lst):
     indexed_lst = [(val, idx) for idx, val in enumerate(lst)]

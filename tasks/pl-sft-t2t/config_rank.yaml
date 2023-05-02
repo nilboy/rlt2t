@@ -1,10 +1,10 @@
-seed_everything: 420
+seed_everything: 188
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/uer/large-199-dp0.1-rank
+  default_root_dir: /root/autodl-tmp/output-models/uer/base-139-188
   accelerator: gpu
-  devices: 3
+  devices: 2
   strategy: ddp
   accumulate_grad_batches: 2
   precision: 16
@@ -36,25 +36,25 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: "/root/autodl-tmp/output-models/uer/large-199-dp0.1-rank/epoch_1.ckpt.dir"
+    init_model: "/root/autodl-tmp/bart-base-139-42"
     # bart 2e-5; t5 1e-3
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 500
-    max_iters: 80000
+    max_iters: 10000
     rank_start_iters: 0
-    rank_loss_rate: 0.1
+    rank_loss_rate: 0.0
     delay_alpha: 0.95
     rdrop_alpha: 2.0
-    dropout_rate: 0.2
+    dropout_rate: 0.1
     min_lr: 1e-5
 
 data:
   class_path: rlt2t.datasets.t2t_rank_datamodule.T2TRankDataModule
   init_args:
     data_dir: data/t2t/train_2_train
-    # 32
-    batch_size: 16
+    # bart-large: 32; bart-base: 256
+    batch_size: 64
     max_source_length: 256
     max_target_length: 96
     start_idx: 106
@@ -63,4 +63,4 @@ data:
     num_workers: 1
     augment_text: True
     port: 9549
-    use_rank: True
+    use_rank: False

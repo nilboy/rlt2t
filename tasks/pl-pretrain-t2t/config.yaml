@@ -1,15 +1,15 @@
-seed_everything: 420
+seed_everything: 42
 
 trainer:
   #resume_from_checkpoint: /root/autodl-tmp/output-models/pt2t/pt2t-large-train_2_train_test/last.ckpt
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/pt2t/fnlp-large-420
+  default_root_dir: /root/autodl-tmp/output-models/pt2t/idea-bart-xl
   accelerator: gpu
   devices: 4
   strategy: ddp
   accumulate_grad_batches: 1
   precision: 16
-  check_val_every_n_epoch: 10
+  check_val_every_n_epoch: 5
   max_steps: 100000
   gradient_clip_val: 0.5
   callbacks:
@@ -23,7 +23,7 @@ trainer:
         dirpath: ${trainer.default_root_dir}
         filename: "epoch_{epoch}"
         auto_insert_metric_name: False
-        every_n_epochs: 10
+        every_n_epochs: 5
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: step
@@ -31,7 +31,7 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_model.T2TModel
   init_args:
-    init_model: "/root/autodl-tmp/pmodels/fnlp/bart-large"
+    init_model: "/root/autodl-tmp/pmodels/idea/bart-xl"
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 1000
@@ -41,7 +41,8 @@ data:
   class_path: rlt2t.datasets.t2t_pretrain_datamodule.T2TPretrainDataModule
   init_args:
     data_dir: data/pt2t/train_2_train_test
-    batch_size: 64
+    # large 64; base 256; xlarge: 32
+    batch_size: 32
     max_source_length: 256
     max_target_length: 96
     start_idx: 106
