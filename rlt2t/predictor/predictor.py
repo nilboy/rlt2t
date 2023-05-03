@@ -15,6 +15,7 @@ class Predictor(object):
                  t2t_model_paths: List[str],
                  rm_model_paths: List[str],
                  t2t_score_model_paths: List[str]=None,
+                 score_model_weights: List[float]=None,
                  num_words: int = 1800,
                  max_src_len: int = 256,
                  max_tgt_len: int = 96,
@@ -36,6 +37,11 @@ class Predictor(object):
         self.sample_size = sample_size
         self.use_fp16 = use_fp16
         self.length_penalty = length_penalty
+        if score_model_weights is None:
+            self.score_model_weights = [1.0] * len(self.t2t_score_model_paths)
+        else:
+            assert len(score_model_weights) == len(self.t2t_score_model_paths), 'weights lengths not matched'
+            self.score_model_weights = score_model_weights
 
     def calculate_scores(self, records):
         output_records = []
@@ -165,14 +171,16 @@ class Predictor(object):
                 'output': item['output'],
                 'score_list': []
             })
-        for model_path in tqdm(self.t2t_score_model_paths, 'calculate score...'):
+        for m_id, model_path in tqdm(enumerate(self.t2t_score_model_paths), 'calculate score...'):
+            model_weight = self.score_model_weights[m_id]
             engine = T2TEngineCT2(model_path,
                                   compute_type="int8",
                                   num_words=self.num_words)
             scores = engine.get_scores(records, batch_size=self.batch_size,
                                        return_tokens_level=True)
             for i in range(len(scores)):
-                output_records[i]['score_list'].append(np.sum(scores[i])/(len(scores[i]) ** self.length_penalty))
+                output_records[i]['score_list'] \
+                    .append(np.sum(scores[i])/(len(scores[i]) ** self.length_penalty) * model_weight)
         for item in output_records:
             item['score'] = np.mean(item['score_list'])
             del item['score_list']

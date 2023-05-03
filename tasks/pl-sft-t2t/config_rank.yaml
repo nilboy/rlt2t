@@ -1,14 +1,15 @@
-seed_everything: 188
+seed_everything: 503941
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/uer/base-139-188
+  default_root_dir: /root/autodl-tmp/output-models/idea/bart-xl-49-42-503941
   accelerator: gpu
-  devices: 2
+  devices: 4
   strategy: ddp
-  accumulate_grad_batches: 2
+  accumulate_grad_batches: 1
   precision: 16
-  check_val_every_n_epoch: 2
+  #check_val_every_n_epoch: 1
+  val_check_interval: 800
   max_steps: 80000
   # bart gradient_clip_val: 0.5, T5: None
   gradient_clip_val: 0.5
@@ -26,9 +27,10 @@ trainer:
         save_last: True # additionaly always save model from last epoch
         verbose: True
         dirpath: ${trainer.default_root_dir}
-        filename: "epoch_{epoch}"
+        filename: "epoch_{epoch}_{step}"
         auto_insert_metric_name: False
-        every_n_epochs: 2
+        #every_n_epochs: 1
+        every_n_train_steps: 800
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: step
@@ -36,7 +38,7 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: "/root/autodl-tmp/bart-base-139-42"
+    init_model: "/root/autodl-tmp/output-models/pt2t/idea-bart-xl/epoch_49.ckpt.dir"
     # bart 2e-5; t5 1e-3
     lr: 2e-5
     weight_decay: 0.01
@@ -45,7 +47,7 @@ model:
     rank_start_iters: 0
     rank_loss_rate: 0.0
     delay_alpha: 0.95
-    rdrop_alpha: 2.0
+    rdrop_alpha: 0.5
     dropout_rate: 0.1
     min_lr: 1e-5
 
@@ -53,8 +55,8 @@ data:
   class_path: rlt2t.datasets.t2t_rank_datamodule.T2TRankDataModule
   init_args:
     data_dir: data/t2t/train_2_train
-    # bart-large: 32; bart-base: 256
-    batch_size: 64
+    # bart-large: 32; bart-base: 256; xl: 16
+    batch_size: 16
     max_source_length: 256
     max_target_length: 96
     start_idx: 106
