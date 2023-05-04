@@ -1,19 +1,20 @@
-seed_everything: 504
+seed_everything: 848
 
 trainer:
+  detect_anomaly: true
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/uer/pegasus-base/
+  default_root_dir: /root/autodl-tmp/output-models/google/flat-t5-base
   accelerator: gpu
-  devices: 4
+  devices: 2
   strategy: ddp
   accumulate_grad_batches: 1
   # 16
-  precision: 16
+  precision: bf16
   check_val_every_n_epoch: 1
   #val_check_interval: 800
   max_steps: 80000
   # bart gradient_clip_val: 0.5, T5: None
-  gradient_clip_val: 0.5
+  #gradient_clip_val: 0.5
   callbacks:
 #    - class_path: pytorch_lightning.callbacks.StochasticWeightAveraging
 #      init_args:
@@ -39,7 +40,7 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: "/root/autodl-tmp/pmodels/uer/pegasus-base/"
+    init_model: "/root/autodl-tmp/google/flan-t5-base"
     # bart 2e-5; t5 1e-3
     lr: 2e-5
     weight_decay: 0.01
@@ -49,8 +50,8 @@ model:
     rank_loss_rate: 0.0
     delay_alpha: 0.95
     # 0.5
-    rdrop_alpha: 1.0
-    rdrop_start_steps: 0
+    rdrop_alpha: 0.5
+    rdrop_start_steps: 500
     dropout_rate: 0.1
     min_lr: 1e-5
 
@@ -59,7 +60,7 @@ data:
   init_args:
     data_dir: data/t2t/train_2_train
     # bart-large: 32; bart-base: 256; xl: 16
-    batch_size: 32
+    batch_size: 24
     max_source_length: 256
     max_target_length: 96
     start_idx: 106
