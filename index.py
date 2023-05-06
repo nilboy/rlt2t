@@ -9,14 +9,36 @@ import pandas as pd
 from rlt2t.predictor.predictor import Predictor
 
 def get_t2t_model_paths():
-    paths = []
-    paths.append(os.path.join(current_folder, 'sub-models', 'uer-large-199-0.2'))
-    return paths
+    paths = [
+        "uer-large-199-0.1",
+        "uer-large-199-0.1-rank",
+        "uer-large-199-0.2",
+        "uer-large-199-0.2-rank",
+        "uer-base-139-0.1-142",
+        "uer-base-139-0.1-188",
+        "fnlp-base-249-242-503650",
+        "fnlp-base-249-242-503657"
+    ]
+    output_paths = []
+    for item in paths:
+        output_paths.append(os.path.join(current_folder, 'sub-models', item))
+    return output_paths
 
 def get_t2t_score_model_paths():
-    paths = []
-    paths.append(os.path.join(current_folder, 'sub-models', 'uer-large-199-0.2'))
-    return paths
+    paths = [
+        "uer-large-199-0.1",
+        "uer-large-199-0.1-rank",
+        "uer-large-199-0.2",
+        "uer-large-199-0.2-rank",
+        "uer-base-139-0.1-142",
+        "uer-base-139-0.1-188",
+        "fnlp-base-249-242-503650",
+        "fnlp-base-249-242-503657"
+    ]
+    output_paths = []
+    for item in paths:
+        output_paths.append(os.path.join(current_folder, 'sub-models', item))
+    return output_paths
 
 def invoke(input_data_path, output_data_path):
     split_token = '1799'
@@ -26,7 +48,7 @@ def invoke(input_data_path, output_data_path):
                           [],
                           t2t_score_model_paths,
                           beam_size=4,
-                          num_hypotheses=1)
+                          num_hypotheses=4)
     df = pd.read_csv(input_data_path,
                      header=None, index_col=False,
                      names=["report_id", "description", "clinical"])
@@ -41,6 +63,15 @@ def invoke(input_data_path, output_data_path):
         texts.append(text)
     output_texts = [item['output'] for item in predictor.predict_v2(texts)]
 
+    # half
+    half = 0
+    half_size = len(output_texts)//2
+    if half == 0:
+        output_texts[0:half_size] = [''] * half_size
+    else:
+        output_texts[half_size:] = [''] * (len(output_texts) - half_size)
+    #
+
     output_records = []
     for idx in range(len(records)):
         output_records.append({
@@ -52,4 +83,8 @@ def invoke(input_data_path, output_data_path):
 
 
 if __name__ == '__main__':
-    pass
+    import time
+    t1 = time.time()
+    invoke('/home/jiangxinghua/gaicc/test.csv', 'output.csv')
+    t2 = time.time()
+    print(t2-t1)

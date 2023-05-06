@@ -4,13 +4,14 @@ import numpy as np
 
 from rlt2t.engines.t2t_engine import T2TEngineCT2
 #from rlt2t.engines.reg_engine import RegEngine
+from rlt2t.utils.evaluate import calculate_scores
 
 def sort_with_index(lst):
     indexed_lst = [(val, idx) for idx, val in enumerate(lst)]
     sorted_lst = sorted(indexed_lst)
     return [idx for val, idx in sorted_lst]
 
-class Predictor(object):
+class PredictorScore(object):
     def __init__(self,
                  t2t_model_paths: List[str],
                  rm_model_paths: List[str],
@@ -171,7 +172,9 @@ class Predictor(object):
             output_records.append({
                 'input': item['input'],
                 'output': item['output'],
-                'score_list': []
+                'score_list': [],
+                'label': item['label'],
+                'metric_score': item['metric_score']
             })
         for m_id, model_path in tqdm(enumerate(self.t2t_score_model_paths), 'calculate score...'):
             model_weight = self.score_model_weights[m_id]
@@ -184,7 +187,7 @@ class Predictor(object):
                 output_records[i]['score_list'] \
                     .append(np.sum(scores[i])/(len(scores[i]) ** self.length_penalty) * model_weight)
         for item in output_records:
-            item['score'] = np.mean(item['score_list'])
+            item['score'] = item['score_list']
             del item['score_list']
         return output_records
 
@@ -214,8 +217,9 @@ class Predictor(object):
         merged_output.sort(key=lambda x: (-x['rank'], -x['score']))
         return merged_output[0]
 
-    def predict_v2(self,
-                   texts: List[str]):
+    def predict_score(self,
+                   texts: List[str],
+                   labels: List[str]):
         """
         Return:
             output_records: List[Dict]
@@ -226,8 +230,11 @@ class Predictor(object):
             }
         """
         texts_map = {}
-        for text in texts:
-            texts_map[text] = {'output_texts': []}
+        for idx, text in enumerate(texts):
+            texts_map[text] = {
+                'output_texts': [],
+                'label': labels[idx]
+            }
         for model_path in tqdm(self.t2t_model_paths, desc='beam_search_predict...'):
             engine = T2TEngineCT2(model_path,
                                   compute_type="int8",
@@ -252,10 +259,20 @@ class Predictor(object):
         flat_records = []
         for text, value in texts_map.items():
             output_texts = value['output_texts']
+            label = value['label']
             for output_text in output_texts:
                 flat_records.append({
-                    'input': text, 'output': output_text
+                    'input': text,
+                    'output': output_text,
+                    'label': label,
+                    'metric_score': -1.0
                 })
+        # calculate metric_score.
+        metric_scores = calculate_scores([item['label'] for item in flat_records],
+                                         [item['output'] for item in flat_records],
+                                         bleu4_rate=1.0 / 3)
+        for i in range(len(flat_records)):
+            flat_records[i]['metric_score'] = metric_scores[i]
         # calculate score for flat records.
         flat_records = self.calculate_score_for_flat_records(flat_records)
         for k, v in texts_map.items():
@@ -263,17 +280,8 @@ class Predictor(object):
         for flat_record in flat_records:
             texts_map[flat_record['input']].append({
                 'output': flat_record['output'],
-                'score':  flat_record['score']
+                'metric_score': flat_record['metric_score'],
+                'score_list': flat_record['score_list']
             })
-        for text, output_list in texts_map.items():
-            texts_map[text] = sorted(output_list, key=lambda x: -x['score'])[0]
+        return texts_map
 
-        # 输出结果.
-        output_records = []
-        for text in texts:
-            output_records.append({
-                'input': text,
-                'output': texts_map[text]['output'],
-                'score':  texts_map[text]['score']
-            })
-        return output_records

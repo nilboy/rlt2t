@@ -75,7 +75,8 @@ class T2TRankModel(LightningModule):
                  rank_start_iters: int = 500,
                  rank_loss_rate: float = 1.0,
                  delay_alpha: float = 0.9,
-                 rdrop_alpha: float = 0.0):
+                 rdrop_alpha: float = 0.0,
+                 rdrop_start_steps: int = 500):
         super().__init__()
         self.save_hyperparameters()
         config = AutoConfig.from_pretrained(init_model)
@@ -92,6 +93,7 @@ class T2TRankModel(LightningModule):
         self.rank_loss_rate = rank_loss_rate
         self.delay_alpha = delay_alpha
         self.rdrop_alpha = rdrop_alpha
+        self.rdrop_start_steps = rdrop_start_steps
         self.min_lr = min_lr
 
     def get_score(self, logits, labels):
@@ -170,7 +172,7 @@ class T2TRankModel(LightningModule):
 
     def get_loss(self, batch: Any):
         loss = 0
-        if self.rdrop_alpha > 0.0:
+        if self.rdrop_alpha > 0.0 and self.trainer.global_step >= self.rdrop_start_steps:
             output1 = self.forward(batch['input_ids'],
                                    batch['attention_mask'],
                                    labels=batch['labels'])
@@ -317,6 +319,7 @@ class T2TRankModel(LightningModule):
                 "weight_decay": 0.0,
             },
         ]
+        # not use adafactor.
         if isinstance(self.model, (T5ForConditionalGeneration, MT5ForConditionalGeneration)):
             optimizer = Adafactor(optimizer_grouped_parameters,
                                   lr=self.hparams.lr,

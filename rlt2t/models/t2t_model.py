@@ -7,12 +7,48 @@ from pytorch_lightning import LightningModule
 from transformers.optimization import get_polynomial_decay_schedule_with_warmup
 from torch.optim import AdamW
 
+from transformers import T5ForConditionalGeneration, MT5ForConditionalGeneration
+from transformers import Adafactor
+
+import torch.nn.functional as F
+
+from torch.optim.lr_scheduler import LambdaLR
+
+
+def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps,
+                                    min_lr=0.0,
+                                    last_epoch=-1):
+    """
+    Create a schedule with a learning rate that decreases linearly from the initial lr set in the optimizer to 0, after
+    a warmup period during which it increases linearly from 0 to the initial lr set in the optimizer.
+    Args:
+        optimizer (:class:`~torch.optim.Optimizer`):
+            The optimizer for which to schedule the learning rate.
+        num_warmup_steps (:obj:`int`):
+            The number of steps for the warmup phase.
+        num_training_steps (:obj:`int`):
+            The total number of training steps.
+        last_epoch (:obj:`int`, `optional`, defaults to -1):
+            The index of the last epoch when resuming training.
+    Return:
+        :obj:`torch.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
+    """
+
+    def lr_lambda(current_step: int):
+        if current_step < num_warmup_steps:
+            return float(current_step) / float(max(1, num_warmup_steps))
+        return max(
+            min_lr, float(num_training_steps - current_step) / float(max(1, num_training_steps - num_warmup_steps))
+        )
+    return LambdaLR(optimizer, lr_lambda, last_epoch)
+
 
 class T2TModel(LightningModule):
     def __init__(self,
                  init_model: str,
                  eos_id: int = 105,
                  lr: float=0.001,
+                 min_lr: float = 1e-5,
                  weight_decay: float=0.0005,
                  warmup_step: int=1000,
                  max_iters: int=10000):
@@ -25,6 +61,7 @@ class T2TModel(LightningModule):
         self.val_bleu = BLEUScore(4)
         self.test_bleu = BLEUScore(4)
         self.eos_id = eos_id
+        self.min_lr = min_lr
 
     def forward(self,
                 input_ids=None,
@@ -146,10 +183,23 @@ class T2TModel(LightningModule):
                 "weight_decay": 0.0,
             },
         ]
-        optimizer = AdamW(optimizer_grouped_parameters,
-                          lr=self.hparams.lr,
-                          weight_decay=self.hparams.weight_decay)
-        scheduler = get_polynomial_decay_schedule_with_warmup(optimizer=optimizer,
-                                                              num_warmup_steps=self.hparams.warmup_step,
-                                                              num_training_steps=self.hparams.max_iters)
+        if isinstance(self.model, (T5ForConditionalGeneration, MT5ForConditionalGeneration)):
+            optimizer = Adafactor(optimizer_grouped_parameters,
+                                  lr=self.hparams.lr,
+                                  eps=(1e-30, 1e-3),
+                                  clip_threshold=1.0,
+                                  decay_rate=-0.8,
+                                  beta1=None,
+                                  weight_decay=0.0,
+                                  relative_step=False,
+                                  scale_parameter=False,
+                                  warmup_init=False)
+        else:
+            optimizer = AdamW(optimizer_grouped_parameters,
+                              lr=self.hparams.lr,
+                              weight_decay=self.hparams.weight_decay)
+        scheduler = get_linear_schedule_with_warmup(optimizer=optimizer,
+                                                    num_warmup_steps=self.hparams.warmup_step,
+                                                    num_training_steps=self.hparams.max_iters,
+                                                    min_lr=self.hparams.min_lr/self.hparams.lr)
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]

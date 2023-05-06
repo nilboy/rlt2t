@@ -1,17 +1,16 @@
-seed_everything: 849
+seed_everything: 1109
 
 trainer:
-  detect_anomaly: true
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/fnlp/bart-base-849-0.2
+  default_root_dir: /root/autodl-tmp/output-models/idea/bart-base-rank
   accelerator: gpu
   devices: 1
   strategy: ddp
-  accumulate_grad_batches: 2
+  accumulate_grad_batches: 4
   # 16
   precision: 16
   check_val_every_n_epoch: 1
-  #val_check_interval: 800
+  #val_check_interval: 600
   max_steps: 80000
   # bart gradient_clip_val: 0.5, T5: None
   gradient_clip_val: 0.5
@@ -32,7 +31,7 @@ trainer:
         filename: "epoch_{epoch}_{step}"
         auto_insert_metric_name: False
         every_n_epochs: 1
-        #every_n_train_steps: 800
+        #every_n_train_steps: 600
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: step
@@ -40,19 +39,19 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: "/root/autodl-tmp/fnlp-base-249-242-503650"
+    init_model: "/root/autodl-tmp/output-models/idea/bart-base-rank/base"
     # bart 2e-5; t5 1e-3
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 500
     max_iters: 5000
     rank_start_iters: 0
-    rank_loss_rate: 0.0
+    rank_loss_rate: 0.2
     delay_alpha: 0.95
     # 0.5
     rdrop_alpha: 2.0
     rdrop_start_steps: 0
-    dropout_rate: 0.2
+    dropout_rate: 0.1
     min_lr: 1e-5
 
 data:
@@ -69,4 +68,4 @@ data:
     num_workers: 1
     augment_text: True
     port: 9549
-    use_rank: False
+    use_rank: True
