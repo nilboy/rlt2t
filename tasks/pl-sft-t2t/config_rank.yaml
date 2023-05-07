@@ -2,7 +2,7 @@ seed_everything: 1129
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/idea/pegasus-base-rank
+  default_root_dir: /root/autodl-tmp/output-models/uer/pegasus-large-rank
   accelerator: gpu
   devices: 3
   strategy: ddp
@@ -39,19 +39,19 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: "/root/autodl-tmp/output-models/idea/pegasus-base-rank/base"
+    init_model: "/root/autodl-tmp/output-models/uer/pegasus-large-rank/base"
     # bart 2e-5; t5 1e-3
     lr: 2e-5
     weight_decay: 0.01
     warmup_step: 500
     max_iters: 5000
     rank_start_iters: 0
-    rank_loss_rate: 0.3
+    rank_loss_rate: 0.2
     delay_alpha: 0.95
     # 0.5
     rdrop_alpha: 2.0
     rdrop_start_steps: 0
-    dropout_rate: 0.1
+    dropout_rate: 0.15
     min_lr: 1e-5
 
 data:
@@ -59,7 +59,7 @@ data:
   init_args:
     data_dir: data/t2t/train_2_train
     # bart-large: 32; bart-base: 256; xl: 16
-    batch_size: 24
+    batch_size: 12
     max_source_length: 256
     max_target_length: 96
     start_idx: 106

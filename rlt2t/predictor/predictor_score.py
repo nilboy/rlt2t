@@ -5,6 +5,7 @@ import numpy as np
 from rlt2t.engines.t2t_engine import T2TEngineCT2
 #from rlt2t.engines.reg_engine import RegEngine
 from rlt2t.utils.evaluate import calculate_scores
+from collections import defaultdict
 
 def sort_with_index(lst):
     indexed_lst = [(val, idx) for idx, val in enumerate(lst)]
@@ -219,7 +220,7 @@ class PredictorScore(object):
 
     def predict_score(self,
                    texts: List[str],
-                   labels: List[str]):
+                   labels: List[str], with_model_name=False):
         """
         Return:
             output_records: List[Dict]
@@ -229,6 +230,8 @@ class PredictorScore(object):
                 "score": 0.4
             }
         """
+
+        record_model_map = defaultdict(list)
         texts_map = {}
         for idx, text in enumerate(texts):
             texts_map[text] = {
@@ -236,6 +239,7 @@ class PredictorScore(object):
                 'label': labels[idx]
             }
         for model_path in tqdm(self.t2t_model_paths, desc='beam_search_predict...'):
+            model_name = model_path.split('/')[-1]
             engine = T2TEngineCT2(model_path,
                                   compute_type="int8",
                                   num_words=self.num_words)
@@ -252,6 +256,7 @@ class PredictorScore(object):
                                                       length_penalty=self.length_penalty)
                 for i, text in enumerate(texts):
                     for output_text in output_texts[i]:
+                        record_model_map[f'{text}_{output_text}'].append((beam_size, model_name))
                         if output_text not in texts_map[text]['output_texts']:
                             texts_map[text]['output_texts'].append(output_text)
 
@@ -281,7 +286,10 @@ class PredictorScore(object):
             texts_map[flat_record['input']].append({
                 'output': flat_record['output'],
                 'metric_score': flat_record['metric_score'],
-                'score_list': flat_record['score_list']
+                'score': flat_record['score']
             })
-        return texts_map
+        if not with_model_name:
+            return texts_map
+        else:
+            return texts_map, record_model_map
 

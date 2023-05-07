@@ -10,15 +10,31 @@ from rlt2t.predictor.predictor import Predictor
 
 def get_t2t_model_paths():
     paths = [
-        "uer-large-199-0.1",
-        "uer-large-199-0.1-rank",
-        "uer-large-199-0.2",
-        "uer-large-199-0.2-rank",
-        "uer-base-139-0.1-142",
-        "uer-base-139-0.1-188",
-        "fnlp-base-249-242-503650",
-        "fnlp-base-249-242-503657"
+        'uer-large-199-0.2-rank',
+        'uer-large-199-0.2',
+        'idea-pegasus-large',
+        'idea-bart-base-rank',
+        'uer-pegasus-base',
+        'fnlp-base-249-242-503650-rank',
+        'idea-bart-xl-0.2-rank',
+        'uer-base-139-0.1-188',
+        'fnlp-base-249-242-503650',
+        'uer-base-139-0.1-142'
     ]
+
+    # paths = [
+    #      'uer-pegasus-large-rank',
+    #      'idea-pegasus-large',
+    #      'idea-bart-base-rank',
+    #      'uer-pegasus-base-rank',
+    #      'idea-bart-base',
+    #      'uer-pegasus-base',
+    #      'idea-bart-xl-0.2',
+    #      'uer-base-139-0.1-188',
+    #      'fnlp-base-249-242-503657',
+    #      'uer-base-139-0.1-142'
+    # ]
+
     output_paths = []
     for item in paths:
         output_paths.append(os.path.join(current_folder, 'sub-models', item))
@@ -26,28 +42,37 @@ def get_t2t_model_paths():
 
 def get_t2t_score_model_paths():
     paths = [
-        "uer-large-199-0.1",
-        "uer-large-199-0.1-rank",
         "uer-large-199-0.2",
-        "uer-large-199-0.2-rank",
-        "uer-base-139-0.1-142",
-        "uer-base-139-0.1-188",
+        "uer-large-199-0.1-rank",
+        "idea-bart-base-rank",
+        "uer-base-139-0.1-142-rank",
+        "fnlp-base-249-242-503650-rank",
+        "idea-bart-xl-0.2",
         "fnlp-base-249-242-503650",
-        "fnlp-base-249-242-503657"
+    ]
+    weights = [
+        3.1807214547847193,
+        3.0532976036639994,
+        2.0744802872639996,
+        2.4505946106337073,
+        0.14313246546531236,
+        1.0915989281099199,
+        0.27479678432975996,
     ]
     output_paths = []
     for item in paths:
         output_paths.append(os.path.join(current_folder, 'sub-models', item))
-    return output_paths
+    return output_paths, weights
 
 def invoke(input_data_path, output_data_path):
     split_token = '1799'
     t2t_model_paths = get_t2t_model_paths()
-    t2t_score_model_paths = get_t2t_score_model_paths()
+    t2t_score_model_paths, weights = get_t2t_score_model_paths()
     predictor = Predictor(t2t_model_paths,
                           [],
                           t2t_score_model_paths,
-                          beam_size=4,
+                          score_model_weights=weights,
+                          beam_size_list=[1, 2, 4],
                           num_hypotheses=4)
     df = pd.read_csv(input_data_path,
                      header=None, index_col=False,
@@ -63,15 +88,6 @@ def invoke(input_data_path, output_data_path):
         texts.append(text)
     output_texts = [item['output'] for item in predictor.predict_v2(texts)]
 
-    # half
-    half = 0
-    half_size = len(output_texts)//2
-    if half == 0:
-        output_texts[0:half_size] = [''] * half_size
-    else:
-        output_texts[half_size:] = [''] * (len(output_texts) - half_size)
-    #
-
     output_records = []
     for idx in range(len(records)):
         output_records.append({
@@ -85,6 +101,6 @@ def invoke(input_data_path, output_data_path):
 if __name__ == '__main__':
     import time
     t1 = time.time()
-    invoke('/home/jiangxinghua/gaicc/test.csv', 'output.csv')
+    invoke('test.csv', 'output.csv')
     t2 = time.time()
     print(t2-t1)

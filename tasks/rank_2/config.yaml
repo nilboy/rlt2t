@@ -1,0 +1,21 @@
+seed_everything: 42
+
+trainer:
+  logger: true
+  default_root_dir: /root/autodl-tmp/output-models/rank_2
+  accelerator: gpu
+  devices: 1
+  max_steps: 1000000
+
+model:
+  class_path: rlt2t.models.rank_2_model.Rank2Model
+  init_args:
+    lr: 2e-5
+    hidden_num: 4
+
+data:
+  class_path: rlt2t.datasets.rank_2_datamodule.Rank2DataModule
+  init_args:
+    data_dir: data/rank
+    batch_size: 1280
+    num_workers: 1
