@@ -11,14 +11,29 @@ from rlt2t.predictor.predictor import Predictor
 def get_t2t_model_paths():
     paths = [
         'uer-large-199-0.2-rank',
-        'uer-pegasus-large-rank',
-        'idea-bart-base',
+        'uer-large-199-0.2',
+        'idea-pegasus-large',
+        'idea-bart-base-rank',
         'uer-pegasus-base',
-        'idea-bart-xl-0.2',
+        'fnlp-base-249-242-503650-rank',
+        'idea-bart-xl-0.2-rank',
         'uer-base-139-0.1-188',
-        'fnlp-base-249-242-503657',
+        'fnlp-base-249-242-503650',
         'uer-base-139-0.1-142'
     ]
+
+    # paths = [
+    #      'uer-pegasus-large-rank',
+    #      'idea-pegasus-large',
+    #      'idea-bart-base-rank',
+    #      'uer-pegasus-base-rank',
+    #      'idea-bart-base',
+    #      'uer-pegasus-base',
+    #      'idea-bart-xl-0.2',
+    #      'uer-base-139-0.1-188',
+    #      'fnlp-base-249-242-503657',
+    #      'uer-base-139-0.1-142'
+    # ]
 
     output_paths = []
     for item in paths:
@@ -31,15 +46,17 @@ def get_t2t_score_model_paths():
         "uer-large-199-0.1-rank",
         "idea-bart-base-rank",
         "uer-base-139-0.1-142-rank",
+        "fnlp-base-249-242-503650-rank",
         "idea-bart-xl-0.2",
         "fnlp-base-249-242-503650",
     ]
     weights = [
         3.1807214547847193,
-        3.1010084254857704,
-        2.217612752729312,
-        2.307462145168395,
-        1.1393097499316907,
+        3.0532976036639994,
+        2.0744802872639996,
+        2.4505946106337073,
+        0.14313246546531236,
+        1.0915989281099199,
         0.27479678432975996,
     ]
     output_paths = []

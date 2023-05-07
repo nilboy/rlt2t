@@ -58,7 +58,7 @@ choise_models = [
     'uer-large-199-0.1-rank',
     'idea-bart-base-rank',
     'uer-base-139-0.1-142-rank',
-    'fnlp-base-249-242-503650-rank',
+    #'fnlp-base-249-242-503650-rank',
     'fnlp-base-249-242-503650'
 ]
 
