@@ -53,13 +53,11 @@ model_names = [
 model_weights = [0.0] * len(model_names)
 
 choise_models = [
-    'idea-bart-xl-0.2',
-    'uer-large-199-0.2',
+    'idea-bart-xl-0.2-rank',
     'uer-large-199-0.1-rank',
-    'idea-bart-base-rank',
+    'uer-large-199-0.2',
     'uer-base-139-0.1-142-rank',
-    #'fnlp-base-249-242-503650-rank',
-    'fnlp-base-249-242-503650'
+    'fnlp-base-249-242-503650-rank',
 ]
 
 model_weights[model_names.index(choise_models[0])] = 1.0
