@@ -10,10 +10,9 @@ from rlt2t.predictor.predictor import Predictor
 
 def get_t2t_model_paths():
     paths = [
-        'idea-bart-xl-0.2-rank',
-        'uer-large-199-0.2-rank',
         'uer-base-139-0.1-142-rank',
         'fnlp-base-249-242-503650-rank',
+        'uer-large-199-0.2-rank',
     ]
 
     output_paths = []
@@ -23,10 +22,9 @@ def get_t2t_model_paths():
 
 def get_t2t_score_model_paths():
     paths = [
-        'idea-bart-xl-0.2-rank',
-        'uer-large-199-0.2-rank',
         'uer-base-139-0.1-142-rank',
         'fnlp-base-249-242-503650-rank',
+        'uer-large-199-0.2-rank',
     ]
     weights = None
     output_paths = []

@@ -10,11 +10,16 @@ from rlt2t.predictor.predictor import Predictor
 
 def get_t2t_model_paths():
     paths = [
+        'idea-bart-xl-0.2',
         'idea-bart-xl-0.2-rank',
         "idea-bart-xl-0.3",
         'uer-large-199-0.1-rank',
         'uer-large-199-0.2',
+        'uer-large-199-0.1',
+        'uer-large-199-0.2-rank',
+        'idea-bart-base-rank',
         'uer-base-139-0.1-142-rank',
+        'fnlp-base-249-242-503650-rank',
     ]
 
     output_paths = []
@@ -26,8 +31,9 @@ def get_t2t_score_model_paths():
     paths = [
         'idea-bart-xl-0.2-rank',
         'uer-large-199-0.1-rank',
-        'uer-large-199-0.2',
+        'uer-large-199-0.2-rank',
         'uer-base-139-0.1-142-rank',
+        'idea-bart-base-rank',
     ]
     weights = None
     output_paths = []
@@ -43,7 +49,7 @@ def invoke(input_data_path, output_data_path):
                           [],
                           t2t_score_model_paths,
                           score_model_weights=weights,
-                          beam_size_list=[2, 4, 6],
+                          beam_size_list=[4],
                           batch_size=128,
                           num_hypotheses=1)
     df = pd.read_csv(input_data_path,

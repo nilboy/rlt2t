@@ -165,7 +165,7 @@ class Predictor(object):
                 best_records.append(best_record)
             return best_records
 
-    def calculate_score_for_flat_records(self, records):
+    def calculate_score_for_flat_records_v1(self, records):
         output_records = []
         for item in records:
             output_records.append({
@@ -186,6 +186,36 @@ class Predictor(object):
         for item in output_records:
             item['score'] = np.mean(item['score_list'])
             del item['score_list']
+        return output_records
+
+    def calculate_score_for_flat_records_v2(self, records):
+        output_records = []
+        for item in records:
+            output_records.append({
+                'input': item['input'],
+                'output': item['output'],
+                'score_list': [],
+            })
+        for m_id, model_path in tqdm(enumerate(self.t2t_score_model_paths), 'calculate score...'):
+            model_weight = self.score_model_weights[m_id]
+            engine = T2TEngineCT2(model_path,
+                                  compute_type="int8",
+                                  num_words=self.num_words)
+            scores = engine.get_scores(records, batch_size=self.batch_size,
+                                       return_tokens_level=True)
+
+            for i in range(len(scores)):
+                output_records[i]['score_list'].append(scores[i])
+
+        for record in output_records:
+            # [model_num, tokens_num]
+            log_probs = np.array(record['score_list'])
+            # [tokens_num,]
+            probs = np.mean(np.exp(log_probs), axis=0)
+            score = np.sum(np.log(probs + 1e-8))/(len(probs) ** self.length_penalty)
+            record['score'] = score
+            del record['score_list']
+
         return output_records
 
     def get_best_output(self, output_list):
@@ -215,7 +245,7 @@ class Predictor(object):
         return merged_output[0]
 
     def predict_v2(self,
-                   texts: List[str]):
+                   texts: List[str], score_version='v1'):
         """
         Return:
             output_records: List[Dict]
@@ -257,7 +287,10 @@ class Predictor(object):
                     'input': text, 'output': output_text
                 })
         # calculate score for flat records.
-        flat_records = self.calculate_score_for_flat_records(flat_records)
+        if score_version == 'v1':
+            flat_records = self.calculate_score_for_flat_records_v1(flat_records)
+        else:
+            flat_records = self.calculate_score_for_flat_records_v2(flat_records)
         for k, v in texts_map.items():
             texts_map[k] = []
         for flat_record in flat_records:
