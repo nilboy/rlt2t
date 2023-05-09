@@ -1,6 +1,15 @@
 import json
 
 model_names = [
+     'idea-bart-xl-1',
+     'idea-bart-xl-1-rank',
+     'idea-bart-xl-2',
+     'idea-bart-xl-2-rank',
+     'idea-bart-xl-0.3-rank',
+     'uer-bart-large-2-rank',
+     'uer-bart-large-2',
+     'uer-bart-large-1-rank',
+     'uer-bart-large-1',
      'uer-large-199-0.2-rank',
      'uer-large-199-0.2',
      'uer-large-199-0.1-rank',
@@ -32,7 +41,7 @@ records = json.load(open('data/rank/train1.json'))
 
 record_model_map = json.load(open('data/rank/record_model_map.json'))
 
-model_weights = json.load(open('weights_1.json'))
+model_weights = [1.0] * len(model_names)
 
 model_weights = np.array([model_weights[model_name] for model_name in model_names])
 

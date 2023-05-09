@@ -1,8 +1,8 @@
-seed_everything: 2018
+seed_everything: 2013
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/uer-bart-large-n2
+  default_root_dir: /root/autodl-tmp/output-models/fnlp-bart-base
   accelerator: gpu
   devices: 8
   strategy: ddp
@@ -39,7 +39,7 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: /root/autodl-tmp/cpt/uer-bart-large
+    init_model: /root/autodl-tmp/output-models/pt2t/fnlp-bart-base/last.ckpt.dir
     # bart 2e-5; t5 1e-3
     lr: 2e-5
     weight_decay: 0.01
@@ -49,9 +49,9 @@ model:
     rank_loss_rate: 0.0
     delay_alpha: 0.95
     # 0.5
-    rdrop_alpha: 1.0
+    rdrop_alpha: 0.5
     rdrop_start_steps: 1000
-    dropout_rate: 0.15
+    dropout_rate: 0.1
     min_lr: 1e-5
     # fgm
     use_fgm: true
@@ -63,7 +63,7 @@ data:
   init_args:
     data_dir: data/t2t/train_2_train
     # bart-large: 32; bart-base: 256; xl: 16
-    batch_size: 16
+    batch_size: 24
     max_source_length: 256
     max_target_length: 96
     start_idx: 106

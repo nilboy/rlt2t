@@ -89,7 +89,7 @@ class Model(object):
         self.max_model_name = cur_max_model_name
         self.filesum = cur_filesum
         cur_model_path = os.path.join(self.base_model_dir, self.max_model_name)
-        ct2_cmd = f'ct2-transformers-converter --model={cur_model_path} --output_dir={self.ct2_model_dir} --force'
+        ct2_cmd = f'ct2-transformers-converter --model={cur_model_path} --output_dir={self.ct2_model_dir} --quantization int8 --force'
         logger.info(ct2_cmd)
         os.system(ct2_cmd)
         engine = T2TEngineCT2(self.ct2_model_dir, compute_type="int8", num_words=1800)

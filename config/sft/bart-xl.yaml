@@ -1,19 +1,19 @@
-seed_everything: 2018
+seed_everything: 842
 
 trainer:
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/uer-bart-large-n2
+  default_root_dir: /root/autodl-tmp/output-models/idea/bart-xl-1
   accelerator: gpu
-  devices: 8
+  devices: 4
   strategy: ddp
-  #accumulate_grad_batches: 2
+  accumulate_grad_batches: 2
   # 16
   precision: 16
-  check_val_every_n_epoch: 1
-  #val_check_interval: 2000
+  #check_val_every_n_epoch: 1
+  val_check_interval: 400
   max_steps: 80000
   # bart gradient_clip_val: 0.5, T5: None
-  # gradient_clip_val: 0.5
+  gradient_clip_val: 0.5
   callbacks:
 #    - class_path: pytorch_lightning.callbacks.StochasticWeightAveraging
 #      init_args:
@@ -22,7 +22,7 @@ trainer:
 #        annealing_epochs: 10
     - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback
       init_args:
-        save_top_k: 4 # save k best models (determined by above metric)
+        save_top_k: 2 # save k best models (determined by above metric)
         monitor: 'val/m_score'
         mode: 'max'
         save_last: True # additionaly always save model from last epoch
@@ -30,8 +30,8 @@ trainer:
         dirpath: ${trainer.default_root_dir}
         filename: "epoch_{epoch}_{step}"
         auto_insert_metric_name: False
-        every_n_epochs: 1
-        #every_n_train_steps: 2000
+        #every_n_epochs: 1
+        every_n_train_steps: 400
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: step
@@ -39,7 +39,7 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_rank_model.T2TRankModel
   init_args:
-    init_model: /root/autodl-tmp/cpt/uer-bart-large
+    init_model: "/root/autodl-tmp/cpt-models/idea/bart-xl1"
     # bart 2e-5; t5 1e-3
     lr: 2e-5
     weight_decay: 0.01
@@ -49,14 +49,10 @@ model:
     rank_loss_rate: 0.0
     delay_alpha: 0.95
     # 0.5
-    rdrop_alpha: 1.0
+    rdrop_alpha: 2.0
     rdrop_start_steps: 1000
-    dropout_rate: 0.15
+    dropout_rate: 0.2
     min_lr: 1e-5
-    # fgm
-    use_fgm: true
-    fgm_epsilon: 0.1
-    fgm_start_steps: 1000
 
 data:
   class_path: rlt2t.datasets.t2t_rank_datamodule.T2TRankDataModule
@@ -72,4 +68,4 @@ data:
     num_workers: 1
     augment_text: True
     port: 9549
-    use_rank: false
+    use_rank: False

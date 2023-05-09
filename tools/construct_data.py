@@ -161,7 +161,7 @@ def construct_data(input_data_dir="raw_data",
                    output_data_dir="data",
                    stage=0,
                    num_kfold=5,
-                   test_data_size=2000):
+                   test_data_size=7500):
     # stage: 0 or 1.
     # 创建数据文件夹
     os.makedirs(output_data_dir, exist_ok=True)

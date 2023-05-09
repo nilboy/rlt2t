@@ -367,3 +367,4 @@ def calculate_scores(label_list, pred_list,
         bleu_score_list.append(bleu_scorer(preds, target).item())
     bleu_score = np.array(bleu_score_list)
     return (1.0 - bleu4_rate) * cider_scores + bleu4_rate * bleu_score
+

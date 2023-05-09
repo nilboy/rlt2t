@@ -2,7 +2,6 @@ from typing import List
 from tqdm.auto import tqdm
 import numpy as np
 from collections import defaultdict
-import json
 
 from rlt2t.engines.t2t_engine import T2TEngineCT2
 #from rlt2t.engines.reg_engine import RegEngine
@@ -20,7 +19,6 @@ class Predictor(object):
                  rm_model_paths: List[str],
                  t2t_score_model_paths: List[str]=None,
                  score_model_weights: List[float]=None,
-                 idf_path: str = None,
                  num_words: int = 1800,
                  max_src_len: int = 256,
                  max_tgt_len: int = 96,
@@ -49,8 +47,6 @@ class Predictor(object):
         else:
             assert len(score_model_weights) == len(self.t2t_score_model_paths), 'weights lengths not matched'
             self.score_model_weights = score_model_weights
-
-        self.idf_dict = json.load(open(idf_path))
 
     def calculate_scores(self, records):
         output_records = []
@@ -172,23 +168,6 @@ class Predictor(object):
                 best_records.append(best_record)
             return best_records
 
-    def calculate_score_with_idf(self, record):
-        score = np.mean(record['score_list'], axis=0)
-        accum_score, accum_num = 0.0, 0.0
-        tokens = record['output'].split()
-        for n in range(1, 5):
-            for i in range(0, len(tokens)):
-                ngram = tokens[i:i+n]
-                if len(ngram) != n:
-                    break
-                ngram = ' '.join(ngram)
-                if ngram in self.idf_dict:
-                    accum_score += np.mean(score[i:i+n]) * np.log(np.log(self.idf_dict[ngram]))
-                    accum_num += 1
-        score_with_idf = accum_score / accum_num
-        return score_with_idf
-
-
     def calculate_score_for_flat_records_v1(self, records):
         output_records = []
         for item in records:
@@ -205,12 +184,11 @@ class Predictor(object):
             scores = engine.get_scores(records, batch_size=self.batch_size,
                                        return_tokens_level=True)
             for i in range(len(scores)):
-                output_records[i]['score_list'].append(scores[i])
+                output_records[i]['score_list'] \
+                    .append(np.sum(scores[i])/(len(scores[i]) ** self.length_penalty) * model_weight)
         for item in output_records:
-            #item['score'] = np.mean(item['score_list'], axis=0)
-            item['score'] = self.calculate_score_with_idf(item)
+            item['score'] = np.mean(item['score_list'])
             del item['score_list']
-
         return output_records
 
     def calculate_score_for_flat_records_v2(self, records):
@@ -271,7 +249,7 @@ class Predictor(object):
 
     def predict_v2(self,
                    texts: List[str],
-                   score_version='v1',
+                   score_version='v2',
                    self_boost=False,
                    boost_size=4):
         """

@@ -10,7 +10,7 @@ trainer:
   accumulate_grad_batches: 1
   precision: 16
   check_val_every_n_epoch: 10
-  max_steps: 100000
+  max_steps: 20000
   gradient_clip_val: 0.5
   callbacks:
     - class_path: rlt2t.callbacks.save_pretrained_model_callback.SavePretrainedModelCallback

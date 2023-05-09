@@ -13,69 +13,47 @@ texts = [item['text'] for item in records]
 summarys = [item['summary'] for item in records]
 
 paths = [
-     'uer-large-199-0.2-rank',
-     'uer-large-199-0.2',
-     'uer-large-199-0.1-rank',
-     'uer-large-199-0.1',
-     'uer-pegasus-large-rank',
-     'idea-pegasus-large-rank',
-     'idea-pegasus-base-rank',
-     'uer-pegasus-large',
-     'idea-pegasus-large',
-     'idea-bart-base-rank',
-     'idea-pegasus-base',
-     'uer-pegasus-base-rank',
-     'idea-bart-base',
-     'uer-pegasus-base',
-     'uer-base-139-0.1-142-rank',
-     'fnlp-base-249-242-503650-rank',
-     'idea-bart-xl-0.2-rank',
-     'idea-bart-xl-0.3',
-     'idea-bart-xl-0.2',
-     'uer-base-139-0.1-188',
-     'fnlp-base-249-242-503657',
-     'fnlp-base-249-242-503650',
-     'uer-base-139-0.1-142',
-]
+ 'idea-bart-xl-2-rank',
+ 'fnlp-base-249-242-503650-rank',
+ 'idea-bart-xl-0.2-rank',
+ 'uer-large-199-0.1-rank',
+ 'uer-base-139-0.1-142-rank',
+ 'idea-bart-xl-1-rank',
+ 'uer-large-199-0.1',
+ 'idea-bart-xl-0.3',
+ 'uer-large-199-0.2',
+ 'idea-bart-base-rank',
+ 'idea-bart-base',
+ 'uer-bart-large-1-rank']
+
 
 t2t_model_paths = []
 for item in paths:
-    t2t_model_paths.append(os.path.join("/root/autodl-tmp", 'sub-models', item))
+    t2t_model_paths.append(os.path.join("/media/data1/jiangxinghua", 'sub-models', item))
 
 paths = [
-     'uer-large-199-0.2-rank',
-     'uer-large-199-0.2',
-     'uer-large-199-0.1-rank',
-     'uer-large-199-0.1',
-     'uer-pegasus-large-rank',
-     'idea-pegasus-large-rank',
-     'idea-pegasus-base-rank',
-     'uer-pegasus-large',
-     'idea-pegasus-large',
-     'idea-bart-base-rank',
-     'idea-pegasus-base',
-     'uer-pegasus-base-rank',
-     'idea-bart-base',
-     'uer-pegasus-base',
-     'uer-base-139-0.1-142-rank',
-     'fnlp-base-249-242-503650-rank',
-     'idea-bart-xl-0.2-rank',
-     'idea-bart-xl-0.3',
-     'idea-bart-xl-0.2',
-     'uer-base-139-0.1-188',
-     'fnlp-base-249-242-503657',
-     'fnlp-base-249-242-503650',
-     'uer-base-139-0.1-142',
+ 'idea-bart-xl-2-rank',
+ 'fnlp-base-249-242-503650-rank',
+ 'idea-bart-xl-0.2-rank',
+ 'uer-large-199-0.1-rank',
+ 'uer-base-139-0.1-142-rank',
+ 'idea-bart-xl-1-rank',
+ 'uer-large-199-0.1',
+ 'idea-bart-xl-0.3',
+ 'uer-large-199-0.2',
+ 'idea-bart-base-rank',
+ 'idea-bart-base',
+ 'uer-bart-large-1-rank'
 ]
 
 t2t_score_model_paths = []
 for item in paths:
-    t2t_score_model_paths.append(os.path.join("/root/autodl-tmp", 'sub-models', item))
+    t2t_score_model_paths.append(os.path.join("/media/data1/jiangxinghua", 'sub-models', item))
 
 predictor = PredictorScore(t2t_model_paths,
                            [],
                            t2t_score_model_paths,
-                           beam_size_list=[1, 2, 4],
+                           beam_size_list=[10],
                            num_hypotheses=4)
 outputs, record_model_map = predictor.predict_score(texts, summarys, with_model_name=True)
 

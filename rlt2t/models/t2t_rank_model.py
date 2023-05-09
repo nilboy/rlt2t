@@ -11,10 +11,34 @@ from rlt2t.utils.evaluate import calculate_scores
 from pytorch_lightning.callbacks.stochastic_weight_avg import StochasticWeightAveraging
 from transformers import T5ForConditionalGeneration, MT5ForConditionalGeneration
 from transformers import Adafactor
+import json
 
 import torch.nn.functional as F
 
 from torch.optim.lr_scheduler import LambdaLR
+
+class FGM():
+    def __init__(self, model):
+        self.model = model
+        self.backup = {}
+
+    def attack(self, epsilon=0.1, emb_name='embed_tokens.weight'):
+        # emb_name这个参数要换成你模型中embedding的参数名
+        for name, param in self.model.named_parameters():
+            if param.requires_grad and emb_name in name:
+                self.backup[name] = param.data.clone()
+                norm = torch.norm(param.grad)
+                if norm != 0 and not torch.isnan(norm):
+                    r_at = epsilon * param.grad / norm
+                    param.data.add_(r_at)
+
+    def restore(self, emb_name='embed_tokens.weight'):
+        # emb_name这个参数要换成你模型中embedding的参数名
+        for name, param in self.model.named_parameters():
+            if param.requires_grad and emb_name in name:
+                assert name in self.backup
+                param.data = self.backup[name]
+        self.backup = {}
 
 
 def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps,
@@ -76,7 +100,10 @@ class T2TRankModel(LightningModule):
                  rank_loss_rate: float = 1.0,
                  delay_alpha: float = 0.9,
                  rdrop_alpha: float = 0.0,
-                 rdrop_start_steps: int = 500):
+                 rdrop_start_steps: int = 500,
+                 use_fgm: bool = False,
+                 fgm_epsilon: float = 0.1,
+                 fgm_start_steps: int = 500):
         super().__init__()
         self.save_hyperparameters()
         config = AutoConfig.from_pretrained(init_model)
@@ -95,6 +122,12 @@ class T2TRankModel(LightningModule):
         self.rdrop_alpha = rdrop_alpha
         self.rdrop_start_steps = rdrop_start_steps
         self.min_lr = min_lr
+        self.use_fgm = use_fgm
+        self.fgm_epsilon = fgm_epsilon
+        self.fgm_start_steps = fgm_start_steps
+        if self.use_fgm:
+            self.automatic_optimization = False
+            self.fgm = FGM(self)
 
     def get_score(self, logits, labels):
         # [batch_size, ]
@@ -207,11 +240,40 @@ class T2TRankModel(LightningModule):
     def training_step(self,
                       batch: Any,
                       batch_idx: int):
-        loss = self.get_loss(batch)
-        self.log('monitoring_step', self.global_step)
-        return {
-            'loss': loss
-        }
+        if not self.use_fgm:
+            loss = self.get_loss(batch)
+            self.log('monitoring_step', self.global_step)
+            return {
+                'loss': loss
+            }
+        elif self.trainer.global_step < self.fgm_start_steps:
+            sch = self.lr_schedulers()
+            sch.step()
+            opt = self.optimizers()
+            opt.zero_grad()
+            loss = self.get_loss(batch)
+            self.manual_backward(loss)
+            self.clip_gradients(opt, gradient_clip_val=0.5, gradient_clip_algorithm="norm")
+            opt.step()
+            return {
+                'loss': loss
+            }
+        else:
+            sch = self.lr_schedulers()
+            sch.step()
+            opt = self.optimizers()
+            opt.zero_grad()
+            loss = self.get_loss(batch)
+            self.manual_backward(loss)
+            self.clip_gradients(opt, gradient_clip_val=0.5, gradient_clip_algorithm="norm")
+            self.fgm.attack()
+            loss_adv = self.get_loss(batch)
+            self.fgm.restore()
+            self.manual_backward(loss_adv)
+            opt.step()
+            return {
+                'loss': loss
+            }
 
     def training_epoch_end(self, outputs: List[Any]):
         # `outputs` is a list of dicts returned from `training_step()`
@@ -245,6 +307,8 @@ class T2TRankModel(LightningModule):
             filtered_tids = []
             tids = labels[i]
             for tid in tids:
+                if tid == self.eos_id:
+                    break
                 if tid > 0:
                     filtered_tids.append(tid)
             output_text = " ".join([str(item) for item in filtered_tids])
@@ -261,7 +325,10 @@ class T2TRankModel(LightningModule):
         for item in outputs:
             preds.extend(item['e_output_texts'])
             labels.extend(item['e_label_texts'])
-        m_score = calculate_scores(labels, preds, bleu4_rate=1/3.0)
+        # with open('text.json', 'w') as fout:
+        #     for pred, label in zip(preds, labels):
+        #         fout.write(json.dumps({'pred': pred, 'label': label}, ensure_ascii=False) + '\n')
+        m_score = calculate_scores(labels, preds, bleu4_rate=0.0)
         self.log("val/m_score", m_score.mean(), on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: Any, batch_idx: int):

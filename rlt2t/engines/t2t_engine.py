@@ -101,6 +101,8 @@ class T2TEngineHF(object):
                                        eos_id=eos_id)
         self.device = device
         self.model = AutoModelForSeq2SeqLM.from_pretrained(model_path).to(device)
+        self.model.eval()
+        self.model.half()
 
     def predict_records(self, records: List[str], batch_size=64,
                         beam_size=2,
@@ -125,13 +127,19 @@ class T2TEngineHF(object):
                 input_ids[j].extend([0] * pad_len)
                 attention_mask[j].extend([0] * pad_len)
             with torch.no_grad():
+                # outputs = self.model.generate(input_ids=torch.tensor(input_ids).to(self.device),
+                #                               attention_mask=torch.tensor(attention_mask).to(self.device),
+                #                               num_beams=beam_size,
+                #                               max_length=max_decoding_length,
+                #                               top_k=sampling_topk,
+                #                               temperature=sampling_temperature,
+                #                               do_sample=do_sample, **kwargs)
                 outputs = self.model.generate(input_ids=torch.tensor(input_ids).to(self.device),
                                               attention_mask=torch.tensor(attention_mask).to(self.device),
-                                              num_beams=beam_size,
-                                              max_length=max_decoding_length,
-                                              top_k=sampling_topk,
-                                              temperature=sampling_temperature,
-                                              do_sample=do_sample, **kwargs)
+                                              max_length=96,
+                                              num_beams=2)
+            import ipdb
+            ipdb.set_trace()
             outputs = outputs.detach().cpu().tolist()
 
             for j in range(0, len(cur_records)):

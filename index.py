@@ -10,10 +10,13 @@ from rlt2t.predictor.predictor import Predictor
 
 def get_t2t_model_paths():
     paths = [
+        'idea-bart-xl-0.2-rank',
+        "idea-bart-xl-0.3",
+        'uer-large-199-0.1-rank',
+        'uer-large-199-0.2',
         'uer-base-139-0.1-142-rank',
-        'fnlp-base-249-242-503650-rank',
-        'uer-large-199-0.2-rank',
     ]
+
 
     output_paths = []
     for item in paths:
@@ -22,9 +25,11 @@ def get_t2t_model_paths():
 
 def get_t2t_score_model_paths():
     paths = [
+        'idea-bart-xl-0.2-rank',
+        'uer-large-199-0.1-rank',
+        'uer-large-199-0.2',
         'uer-base-139-0.1-142-rank',
         'fnlp-base-249-242-503650-rank',
-        'uer-large-199-0.2-rank',
     ]
     weights = None
     output_paths = []
@@ -40,8 +45,9 @@ def invoke(input_data_path, output_data_path):
                           [],
                           t2t_score_model_paths,
                           score_model_weights=weights,
-                          beam_size_list=[4],
-                          batch_size=128,
+                          idf_path=os.path.join(current_folder, 'idf.json'),
+                          beam_size_list=[10],
+                          batch_size=256,
                           num_hypotheses=4)
     df = pd.read_csv(input_data_path,
                      header=None, index_col=False,
@@ -55,7 +61,8 @@ def invoke(input_data_path, output_data_path):
     for record in records:
         text = " ".join([record['clinical'].strip(), split_token, record['description'].strip()])
         texts.append(text)
-    output_texts = [item['output'] for item in predictor.predict_v2(texts)]
+
+    output_texts = [item['output'] for item in predictor.predict_v2(texts, score_version='v1', self_boost=False, boost_size=3)]
 
     output_records = []
     for idx in range(len(records)):

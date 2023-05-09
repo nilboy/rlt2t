@@ -173,7 +173,7 @@ def construct_t2t_data(output_data_dir):
 
 def construct_data(input_data_dir="raw_data",
                    output_data_dir="data",
-                   test_data_size=1000):
+                   test_data_size=7500):
     # stage: 0 or 1.
     # 创建数据文件夹
     os.makedirs(output_data_dir, exist_ok=True)

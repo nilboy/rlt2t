@@ -2,5 +2,6 @@
 *.pyc
 raw_data/
 data/
+notebooks/
 __pycache__/
 .DS_Store

@@ -3,9 +3,9 @@ seed_everything: 2023
 trainer:
   #resume_from_checkpoint: /root/autodl-tmp/output-models/pt2t/pt2t-large-train_2_train_test/last.ckpt
   logger: true
-  default_root_dir: /root/autodl-tmp/output-models/pt2t/fnlp-bart-base
+  default_root_dir: /root/autodl-tmp/output-models/pt2t/uer-bart-large
   accelerator: gpu
-  devices: 8
+  devices: 4
   strategy: ddp
   accumulate_grad_batches: 1
   precision: 16
@@ -31,7 +31,7 @@ trainer:
 model:
   class_path: rlt2t.models.t2t_model.T2TModel
   init_args:
-    init_model: "/root/autodl-tmp/pmodels/fnlp-bart-base"
+    init_model: "/root/autodl-tmp/pmodels/uer-bart-large"
     # 2e-5
     lr: 8e-5
     weight_decay: 0.01

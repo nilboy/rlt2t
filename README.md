@@ -1,89 +1,89 @@
 # rlt2t
 
-## vocab
+Reinforcement learning text to text.
+
+## 算法
+
+### 整体思路介绍
+整体架构是多模型生成多个候选答案，Rerank模型排序，选取最好的答案作为最终的输出。
+
+生成模型和Rerank模型都选择bart结构。 生成模型 和 Rerank模型使用同一个模型，用RL训练:
+
+强化学习: 上一个epoch保存的模型作为策略生成模型，生成a,b两个答案，通过评测指标计算score_a, score_b。Rerank模型对a,b进行比较。计算rank_loss。
+
+rank_loss 和 自回归loss 加权作为最终loss
+
+### Rank loss 计算
 ```
-0: [PAD]
-1: [unused1]
-2: [unused2]
-3: [unused3]
-... ...
-100: [UNK]
-101: [CLS]
-102: [SEP]
-103: [MASK]
-104: <S>
-105: <T>
+def get_rank_outputs(self, orig_input_ids=None,
+                     orig_attention_mask=None,
+                     rank_a_labels=None,
+                     rank_b_labels=None,
+                     use_rank=None):
+    output_rank_a = self.model(orig_input_ids,
+                               attention_mask=orig_attention_mask,
+                               labels=rank_a_labels)
+    output_rank_b = self.model(orig_input_ids,
+                               attention_mask=orig_attention_mask,
+                               labels=rank_b_labels)
+    rank_a_labels_pad = rank_a_labels.masked_fill(rank_a_labels == -100, 0)
+    rank_b_labels_pad = rank_b_labels.masked_fill(rank_b_labels == -100, 0)
+    # (batch_size, seq_len)
+    rank_a_logits = torch.gather(output_rank_a.logits, 2, rank_a_labels_pad.unsqueeze(2)).squeeze(-1)
+    rank_b_logits = torch.gather(output_rank_b.logits, 2, rank_b_labels_pad.unsqueeze(2)).squeeze(-1)
+    diff_logits = rank_a_logits - rank_b_logits
+    rank_loss = -torch.log(torch.sigmoid(diff_logits))
+    mask_rate = self.build_mask_rate(rank_a_labels, rank_b_labels, rank_a_logits.dtype, alpha=self.delay_alpha)
+    rank_loss = rank_loss * mask_rate
+
+    # build select mask
+    select_mask = (rank_a_labels != -100) & (rank_b_labels != -100) & (mask_rate > 1e-8)
+    select_mask = select_mask & (use_rank.unsqueeze(-1).to(select_mask.dtype))
+
+    rank_loss = torch.masked_select(rank_loss, select_mask).sum() / (torch.masked_select(mask_rate, select_mask).sum() + 1e-8)
+    rank_acc = torch.sum(diff_logits > 0) / diff_logits.shape[0]
+    return rank_loss, rank_acc
 ```
 
-## 训练
-1. 构造数据
+## 训练流程
+* 处理训练数据
 ```
-python tools/construct_data.py
+python tools/construct_data_stage_2.py
 ```
-2. 转换模型
+* 转换模型
 ```
-python tasks/convert_models/convert_model.py --input_model_name=/root/autodl-tmp/Erlangshen-MegatronBert-1.3B \
- --output_model_name=/root/autodl-tmp/pmodels/Erlangshen-MegatronBert-1.3B \
- --model_type=bert \
+python tasks/convert_models/convert_model.py \
+ --input_model_name=pretrain_models/uer_bart_base \
+ --output_model_name=pmodels/uer_bart_base \
+ --model_type=bart \
  --vocab_size=2000
- 
- python tasks/convert_models/convert_model.py --input_model_name=/root/autodl-tmp/Randeng-T5-784M \
- --output_model_name=/root/autodl-tmp/pmodels/Randeng-T5-784M \
- --model_type=t5 \
- --vocab_size=2000
 
-python tasks/convert_models/convert_model.py --input_model_name=/root/autodl-tmp/Wenzhong2.0-GPT2-3.5B-chinese \
---output_model_name=/root/autodl-tmp/pmodels/Wenzhong2.0-GPT2-3.5B-chinese \
---model_type=gpt2 \
---vocab_size=2000
 ```
-3. 预训练clm、mlm、t2t模型
+* DAE预训练
 ```
-bash tasks/pretrain-mlm/run.sh ddp 1 11889
-bash tasks/pretrain-t2t/run.sh ddp 1 12889
-bash tasks/train-clm/run.sh ddp 1 13889
+python tasks/pl-pretrain-t2t/run.py fit \
+    --config tasks/pl-pretrain-t2t/config_uer_bart_base.yaml
 ```
-4. 训练kfold, sft-t2t模型
+* 训练生成模型
 ```
-bash tasks/sft-t2t/run.sh ddp 1 10889 0
-bash tasks/sft-t2t/run.sh ddp 1 11889 1
-bash tasks/sft-t2t/run.sh ddp 1 12889 2
-bash tasks/sft-t2t/run.sh ddp 1 13889 3
-bash tasks/sft-t2t/run.sh ddp 1 14889 4
-# 导出模型
-# ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
+python tasks/pl-sft-t2t/run.py fit --config tasks/pl-sft-t2t/base/uer_bart_base.yaml
 ```
-5. 通过clm模型构造大数据集
+* 训练rank模型
+用上面训练的生成模型作为初始化，加入rank_loss继续微调
 ```
-# 导出模型
-ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
-# 生成数据
-python tools/generate_clm_data.py --model_path clm_ct2 --output_file data/gen_clm.json --generate_num 1000000
-```
-6. 构造RM数据集
-```
-python construct_rm_data.py
-```
-7. 训练RM模型
-```
-bash ./ft-regress-model/run.sh
-```
-8. 构造弱标签数据集
-```
-python generate_weak_data.py
-```
-9. 训练弱标签t2t模型
-10. 训练人工标签t2t模型
+# 启动策略生成服务
 
----
-* 启动rank-data服务:
+mkdir -p output-models/uer_bart_base-rank
+cp -r output-models/uer_bart_base/last.ckpt.dir output-models/uer_bart_base-rank/epoch_0.ckpt.dir
+python tools/rank_data_app.py output-models/uer_bart_base-rank 9550
+python tasks/pl-sft-t2t/run.py fit --config tasks/pl-sft-t2t/rank/uer_bart_base.yaml
 ```
-python tools/rank_data_app.py /root/autodl-tmp/output-models/t2t-base/4 9678
-python tools/ensemble_rank_data_app.py /root/autodl-tmp/ct2 9678
+* 导出模型，转化为ctranslat2格式
+```
+ct2-transformers-converter --model output-models/uer_bart_base-rank --output_dir sub-models/uer_bart_base_rank --quantization int8
 ```
 
----
-* 构造score数据集
+## 推理流程
 ```
-python tools/construct_score_data.py
+python index.py
 ```
