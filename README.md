@@ -43,6 +43,17 @@ def get_rank_outputs(self, orig_input_ids=None,
     rank_loss = torch.masked_select(rank_loss, select_mask).sum() / (torch.masked_select(mask_rate, select_mask).sum() + 1e-8)
     rank_acc = torch.sum(diff_logits > 0) / diff_logits.shape[0]
     return rank_loss, rank_acc
+
+def build_mask_rate(self, rank_a_labels, rank_b_labels,
+                    dtype,
+                    alpha=0.9):
+    batch_size, seq_len = rank_a_labels.shape
+    mask_rate = torch.zeros_like(rank_a_labels, dtype=dtype)
+    for i in range(batch_size):
+        items = (rank_a_labels[i] != rank_b_labels[i]).nonzero()
+        start_idx = items[0].item() if len(items) > 0 else seq_len
+        mask_rate[i, start_idx:] = alpha ** torch.arange(seq_len - start_idx, device=rank_a_labels.device)
+    return mask_rate
 ```
 
 ## 训练流程
